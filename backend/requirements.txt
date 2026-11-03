@@ -1,0 +1,8 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+google-genai>=1.0
+requests>=2.32
+sqlalchemy>=2.0
+python-dotenv>=1.0
