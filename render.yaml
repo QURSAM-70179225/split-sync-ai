@@ -1,0 +1,26 @@
+# One-click deploy: https://render.com/deploy?repo=https://github.com/QURSAM-70179225/split-sync-ai
+services:
+  - type: web
+    name: splitsync-ai
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Optional: leave blank for offline AI mode / simulated checkout
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_MODE
+        value: auto
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: SEED_DEMO_ON_START
+        value: "true"
+      # Free instances have an ephemeral disk; the demo group re-seeds on each restart.
+      - key: DATABASE_URL
+        value: sqlite:////tmp/splitsync.db

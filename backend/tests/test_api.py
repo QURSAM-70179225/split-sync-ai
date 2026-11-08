@@ -108,3 +108,11 @@ def test_delete_expense(client, trio):
     eid = say(client, gid, "I paid $10 for coffee with Alex", ids["You"])["expense"]["id"]
     assert client.delete(f"/api/expenses/{eid}").status_code == 204
     assert client.get(f"/api/groups/{gid}/expenses").json() == []
+
+
+def test_offline_description_after_amount(client, trio):
+    gid, ids = trio
+    e = say(client, gid, "Alex covered the $24 Uber, split with me", ids["You"])["expense"]
+    assert e["description"] == "Uber" and e["category"] == "transport" and e["payer"]["name"] == "Alex"
+    e = say(client, gid, "I paid 40 bucks for pizza with Sarah", ids["You"])["expense"]
+    assert e["description"] == "Pizza"

@@ -105,6 +105,7 @@ User text ─► POST /api/groups/{id}/expenses/parse {text, sender_id, source}
 - **Known gap:** there is no authentication. Anyone who can reach the API can act as any member. Auth is the top roadmap item before any public deployment.
 
 ## 7. Deployment
+- **Hosted (recommended):** the root `Dockerfile` builds the React app and copies it into the Python image. FastAPI serves it from `STATIC_DIR` with an SPA fallback, so there's **one service on one URL** with no CORS. `render.yaml` gives one-click Render deploys. The PayPal return URL comes from `RENDER_EXTERNAL_URL`. `SEED_DEMO_ON_START` seeds the demo trip for judges. See [DEPLOY.md](DEPLOY.md).
 - **Local:** `setup.bat` / `start.bat` (Windows) or `make setup && make dev`.
-- **Docker:** `docker compose up --build`. nginx serves the SPA and proxies `/api` (SSE unbuffered). The backend runs as a non-root user with a healthcheck, and SQLite is on a named volume.
+- **Docker (two containers):** `docker compose up --build`. nginx serves the SPA and proxies `/api` (SSE unbuffered). The backend runs as a non-root user with a healthcheck, and SQLite is on a named volume.
 - **CI:** GitHub Actions runs ruff and pytest (backend) and `npm ci && npm run build` (frontend).

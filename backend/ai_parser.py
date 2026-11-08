@@ -186,6 +186,12 @@ def _offline_parse(text: str, members: list[str], sender: str) -> ParsedExpense:
         r"\bfor\s+(?:the\s+|a\s+|an\s+|our\s+)?([A-Za-z][A-Za-z ]{1,30}?)(?:[,.:]|\s+(?:split|with|between|and|for)\b|$)",
         text, re.I,
     )
+    if not dm:  # "the $24 Uber", "40 bucks pizza"
+        dm = re.search(
+            r"[$€£₹¥]?\d+(?:[.,]\d{1,2})?\s*(?:usd|eur|gbp|inr|dollars?|bucks|euros?)?\s+"
+            r"(?!for\b|on\b|to\b|with\b|split\b)([A-Za-z][A-Za-z ]{1,25}?)(?:[,.:]|\s+(?:split|with|between|and|for)\b|$)",
+            text, re.I,
+        )
     description = dm.group(1).strip().title() if dm else "Shared Expense"
 
     return ParsedExpense(
@@ -271,11 +277,12 @@ def _offline_answer(question: str, ctx: dict, sender: str) -> str:
             w in q.split() for w in ("i", "me", "my")) else ctx["debts"]
         if not mine:
             return "Nobody owes anything — the group is all square. 🎉"
-        return " ".join(f"{d['from']} owes {d['to']} {fmt(d['amount'])}." for d in mine[:4])
+        return " ".join(f"{d['from']} {'owe' if d['from'] == 'You' else 'owes'} {d['to']} {fmt(d['amount'])}."
+                        for d in mine[:4])
     if any(w in q for w in ("most", "biggest", "top", "who paid")):
         top = max(ctx["by_person"], key=lambda p: p["paid"], default=None)
         if top:
-            return f"{top['name']} has paid the most so far: {fmt(top['paid'])}."
+            return f"{top['name']} {'have' if top['name'] == 'You' else 'has'} paid the most so far: {fmt(top['paid'])}."
     if any(w in q for w in ("largest", "expensive")) and ctx.get("largest"):
         big = ctx["largest"]
         return f"The largest expense was {big['description']} at {fmt(big['amount'])}, paid by {big['payer']}."

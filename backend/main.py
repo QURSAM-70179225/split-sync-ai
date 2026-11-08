@@ -11,10 +11,11 @@ import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -76,6 +77,13 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "i
 async def lifespan(_app: FastAPI):
     init_db()
     broker.bind(asyncio.get_running_loop())
+    if settings.seed_demo_on_start:
+        from database import SessionLocal
+
+        with SessionLocal() as db:
+            if db.scalar(select(Group.id).limit(1)) is None:
+                seed_demo_group(db)
+                log.info("Seeded demo group")
     log.info("SplitSync AI ready · ai=%s · paypal=%s", ai_mode(), settings.effective_paypal_mode)
     yield
 
@@ -436,7 +444,7 @@ def pay_settlement(payload: SettlementPayRequest, db: Session = Depends(get_db))
     db.add(settlement)
     db.flush()
 
-    base = settings.frontend_url.rstrip("/")
+    base = settings.public_url
     mode = settings.effective_paypal_mode
     if mode == "demo":
         order = {"order_id": f"DEMO-{uuid.uuid4().hex[:16].upper()}"}
@@ -510,3 +518,20 @@ def list_settlements(group_id: int, db: Session = Depends(get_db)):
     return db.scalars(
         select(Settlement).where(Settlement.group_id == group_id).order_by(Settlement.created_at.desc())
     ).all()
+
+
+# ---------------------------------------------------------------- single-URL hosting
+# When STATIC_DIR points at the built frontend (frontend/dist), FastAPI serves the SPA too,
+# so the whole app deploys as one service (see Dockerfile / render.yaml at the repo root).
+_static = Path(settings.static_dir) if settings.static_dir else None
+if _static and (_static / "index.html").is_file():
+    _static = _static.resolve()
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(404, "Not found")
+        candidate = (_static / full_path).resolve()
+        if full_path and candidate.is_file() and _static in candidate.parents:
+            return FileResponse(candidate)
+        return FileResponse(_static / "index.html")

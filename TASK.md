@@ -2,6 +2,13 @@
 
 Legend: ✅ done · 🟡 in progress · ⬜ to do · 🔑 needs your keys
 
+## 🚀 Submission (see SUBMISSION.md)
+- [ ] Create the public GitHub repo and push
+- [ ] Click **Deploy to Render** in the README, add keys, and copy the URL into the README and the form
+- [ ] Record a video under 3 minutes (shot list in SUBMISSION.md) and upload it as **Public** on YouTube
+- [ ] Tick sponsor tools: **PayPal**, **Google Gemini**
+- [ ] Invite teammates and confirm they accepted
+
 ## 🔑 Before the demo (you, at the end)
 - [ ] Get a **Gemini API key**: https://aistudio.google.com/app/apikey
 - [ ] Get **PayPal Sandbox** keys: developer.paypal.com → Apps & Credentials → **Sandbox** → Create App → copy the Client ID and Secret
@@ -43,17 +50,21 @@ Legend: ✅ done · 🟡 in progress · ⬜ to do · 🔑 needs your keys
 - ✅ Placeholder keys in `.env` treated as unset (zero-config start)
 - ✅ Additive DB migrations for existing `splitsync.db`
 - ✅ Request-ID logging middleware + safe 500 handler
-- ✅ 15 backend tests (pytest) + ruff
+- ✅ 16 backend tests (pytest) + ruff
 - ✅ Docker (backend + nginx frontend) + docker-compose
 - ✅ GitHub Actions CI (lint, test, build)
 - ✅ Windows one-click `setup.bat` / `start.bat`, `Makefile` for macOS/Linux
+- ✅ Single-image Dockerfile (FastAPI serves the SPA) + `render.yaml` one-click deploy + `DEPLOY.md`
+- ✅ MIT LICENSE, interactive README (badges, Deploy button, mermaid diagrams, screenshots), `SUBMISSION.md`
 - ✅ Docs: README, ARCHITECTURE, PRODUCT_REQUIREMENTS, DESIGN, SCHEMA, CLAUDE, TASK
 
 ## Not yet verified
 - ⬜ 🔑 Real Gemini calls (text, receipt vision, copilot, nudge). The code paths exist, but every run so far was offline
 - ⬜ 🔑 Real PayPal Sandbox create → approve → capture. Tested only against a mocked client and demo mode
 - ⬜ `setup.bat` / `start.bat` on a real Windows machine (written for PowerShell 5.1, not executed yet)
-- ⬜ `docker compose up` (Dockerfiles written, not built in CI yet)
+- ✅ Root `Dockerfile` built and run locally (healthy, serves the SPA + API, seeds the demo)
+- ⬜ `docker compose up` (two-container variant, not built yet)
+- ⬜ A real Render deploy (blueprint written; needs the public repo)
 
 ## v3: Roadmap ⬜
 - ⬜ Auth + invite links (magic link). Replace "Acting as" with the real identity

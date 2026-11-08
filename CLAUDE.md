@@ -11,7 +11,8 @@ backend/   main.py (routes only) · ledger.py (money math) · ai_parser.py (all 
            insights.py · events.py (SSE broker) · paypal_client.py · models.py · schemas.py
            config.py · database.py (+ additive migrations) · demo_data.py · tests/
 frontend/  src/App.jsx (state + orchestration) · components/ · hooks/ · services/api.js
-docs       ARCHITECTURE.md · SCHEMA.md · DESIGN.md · PRODUCT_REQUIREMENTS.md · TASK.md
+deploy     Dockerfile (single image) · render.yaml · DEPLOY.md · docker-compose.yml
+docs       README.md · SUBMISSION.md · ARCHITECTURE.md · SCHEMA.md · DESIGN.md · PRODUCT_REQUIREMENTS.md · TASK.md
 ```
 
 ## Commands

@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./splitsync.db"
     max_receipt_mb: int = 8
     log_level: str = "INFO"
+    # Serve the built React app from this folder (single-URL deployments). Empty = API only.
+    static_dir: str = ""
+    # Seed the "Bali Trip" demo group when the database is empty (hosted demos for judges).
+    seed_demo_on_start: bool = False
+    # Set automatically by Render; used as the public URL when FRONTEND_URL is left at its default.
+    render_external_url: str = ""
 
     @field_validator("gemini_api_key", "paypal_client_id", "paypal_client_secret", mode="before")
     @classmethod
@@ -41,6 +47,13 @@ class Settings(BaseSettings):
     @property
     def ai_enabled(self) -> bool:
         return bool(self.gemini_api_key) and not self.ai_offline_mode
+
+    @property
+    def public_url(self) -> str:
+        """Base URL PayPal redirects back to after checkout."""
+        if self.render_external_url and "localhost" in self.frontend_url:
+            return self.render_external_url.rstrip("/")
+        return self.frontend_url.rstrip("/")
 
     @property
     def effective_paypal_mode(self) -> str:
