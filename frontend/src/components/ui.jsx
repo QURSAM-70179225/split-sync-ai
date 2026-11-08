@@ -1,7 +1,7 @@
 import { avatarColor, initials } from "../services/format";
 
 export function Avatar({ user, size = "md" }) {
-  const sz = size === "sm" ? "h-6 w-6 text-[10px]" : size === "lg" ? "h-10 w-10 text-sm" : "h-8 w-8 text-xs";
+  const sz = { xs: "h-4 w-4 text-[8px]", sm: "h-6 w-6 text-[10px]", lg: "h-10 w-10 text-sm" }[size] || "h-8 w-8 text-xs";
   return (
     <span
       title={user?.name}

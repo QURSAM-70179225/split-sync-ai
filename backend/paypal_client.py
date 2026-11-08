@@ -106,7 +106,7 @@ def create_paypal_order(
         raise PayPalError("PayPal order creation failed.", 502, _safe_json(resp))
     body = resp.json()
     approval = next(
-        (l["href"] for l in body.get("links", []) if l.get("rel") in ("payer-action", "approve")), None
+        (link["href"] for link in body.get("links", []) if link.get("rel") in ("payer-action", "approve")), None
     )
     if not approval:
         raise PayPalError("PayPal did not return an approval link.", 502, body)

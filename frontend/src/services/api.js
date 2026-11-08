@@ -8,13 +8,13 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, { method = "GET", body } = {}) {
+async function request(path, { method = "GET", body, form } = {}) {
   let res;
   try {
     res = await fetch(`${BASE}${path}`, {
       method,
       headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
+      body: form ?? (body ? JSON.stringify(body) : undefined),
     });
   } catch {
     throw new ApiError("Can't reach the SplitSync API. Is the backend running on :8000?", 0);
@@ -31,17 +31,35 @@ async function request(path, { method = "GET", body } = {}) {
 
 export const api = {
   health: () => request("/api/health"),
+  seedDemo: () => request("/api/demo/seed", { method: "POST" }),
+
   listGroups: () => request("/api/groups"),
   getGroup: (id) => request(`/api/groups/${id}`),
   createGroup: (name, members) => request("/api/groups", { method: "POST", body: { name, members } }),
   deleteGroup: (id) => request(`/api/groups/${id}`, { method: "DELETE" }),
   addMember: (groupId, name, email) =>
     request(`/api/groups/${groupId}/members`, { method: "POST", body: { name, email: email || null } }),
-  parseExpense: (groupId, text, senderId) =>
-    request(`/api/groups/${groupId}/expenses/parse`, { method: "POST", body: { text, sender_id: senderId } }),
+
+  parseExpense: (groupId, text, senderId, source = "chat") =>
+    request(`/api/groups/${groupId}/expenses/parse`, { method: "POST", body: { text, sender_id: senderId, source } }),
+  scanReceipt: (groupId, file, note, senderId) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("note", note || "");
+    if (senderId) form.append("sender_id", String(senderId));
+    return request(`/api/groups/${groupId}/expenses/receipt`, { method: "POST", form });
+  },
   listExpenses: (groupId) => request(`/api/groups/${groupId}/expenses`),
   deleteExpense: (id) => request(`/api/expenses/${id}`, { method: "DELETE" }),
+  exportCsvUrl: (groupId) => `${BASE}/api/groups/${groupId}/export.csv`,
+
   balances: (groupId) => request(`/api/groups/${groupId}/balances`),
+  insights: (groupId) => request(`/api/groups/${groupId}/insights`),
+  ask: (groupId, question, senderId) =>
+    request(`/api/groups/${groupId}/ask`, { method: "POST", body: { question, sender_id: senderId } }),
+  nudge: (groupId, payload) => request(`/api/groups/${groupId}/nudge`, { method: "POST", body: payload }),
+  eventsUrl: (groupId) => `${BASE}/api/groups/${groupId}/events`,
+
   listSettlements: (groupId) => request(`/api/groups/${groupId}/settlements`),
   paySettlement: (payload) => request("/api/settlements/pay", { method: "POST", body: payload }),
   captureSettlement: (id, orderId) =>

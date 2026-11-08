@@ -2,11 +2,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import BalancesPanel from "./components/BalancesPanel";
 import ChatPanel from "./components/ChatPanel";
 import CreateGroupModal from "./components/CreateGroupModal";
+import DemoCheckoutModal from "./components/DemoCheckoutModal";
+import InsightsPanel from "./components/InsightsPanel";
 import Ledger from "./components/Ledger";
+import NudgeModal from "./components/NudgeModal";
 import Sidebar from "./components/Sidebar";
 import { Avatar, Modal, Spinner, Toasts, btnGhost, btnPrimary, inputCls } from "./components/ui";
+import { useGroupEvents } from "./hooks/useGroupEvents";
 import { api } from "./services/api";
 import { money, storage } from "./services/format";
+
+const LIVE_EVENT_TEXT = {
+  "expense.created": (e) => `${e.by ? `${e.by} added` : "New expense:"} ${e.description}`,
+  "expense.deleted": () => "An expense was removed",
+  "settlement.completed": (e) => `${e.from} paid ${e.to} ${money(e.amount)} 🎉`,
+  "member.added": (e) => `${e.name} joined the group`,
+};
 
 export default function App() {
   const [health, setHealth] = useState(null);
@@ -15,13 +26,19 @@ export default function App() {
   const [expenses, setExpenses] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [balances, setBalances] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [identity, setIdentity] = useState(() => storage.get("splitsync.identity", {}));
+  const [tab, setTab] = useState(() => storage.get("splitsync.tab", "overview"));
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [nudgeDebt, setNudgeDebt] = useState(null);
+  const [demoCheckout, setDemoCheckout] = useState(null);
   const [toasts, setToasts] = useState([]);
   const handledReturn = useRef(false);
+  const lastLocalAction = useRef(0);
 
   const toast = useCallback((message, type = "info") => {
     const id = Math.random().toString(36).slice(2);
@@ -46,6 +63,7 @@ export default function App() {
     setExpenses(ex);
     setBalances(bal);
     setSettlements(st);
+    setRefreshKey((k) => k + 1);
   }, []);
 
   useEffect(() => {
@@ -64,8 +82,33 @@ export default function App() {
   }, [activeId, loadGroupData, toast]);
 
   useEffect(() => storage.set("splitsync.identity", identity), [identity]);
+  useEffect(() => storage.set("splitsync.tab", tab), [tab]);
+
+  // ---------- live sync: other devices' changes appear instantly
+  const live = useGroupEvents(activeId, (evt) => {
+    if (evt.type === "group.deleted") {
+      loadGroups();
+      return;
+    }
+    if (evt.type === "member.added") loadGroups();
+    loadGroupData(activeId);
+    const fromElsewhere = Date.now() - lastLocalAction.current > 2500;
+    if (fromElsewhere && LIVE_EVENT_TEXT[evt.type]) toast(`🔴 Live: ${LIVE_EVENT_TEXT[evt.type](evt)}`, "info");
+  });
+  const touch = () => (lastLocalAction.current = Date.now());
 
   // ---------- PayPal return handling (?paypal=success&settlement_id=..&token=ORDER_ID)
+  const capture = useCallback(
+    async (sid, orderId) => {
+      touch();
+      const st = await api.captureSettlement(sid, orderId);
+      toast(`Payment of ${money(st.amount, st.currency)} from ${st.from_user.name} to ${st.to_user.name} completed! 🎉`, "success");
+      setActiveId(st.group_id);
+      await loadGroupData(st.group_id);
+    },
+    [toast, loadGroupData]
+  );
+
   useEffect(() => {
     if (handledReturn.current) return;
     const params = new URLSearchParams(window.location.search);
@@ -81,15 +124,8 @@ export default function App() {
       return;
     }
     toast("Confirming your PayPal payment…", "info");
-    api
-      .captureSettlement(sid, params.get("token"))
-      .then(async (st) => {
-        toast(`Payment of ${money(st.amount, st.currency)} from ${st.from_user.name} to ${st.to_user.name} completed! 🎉`, "success");
-        setActiveId(st.group_id);
-        await loadGroupData(st.group_id);
-      })
-      .catch((e) => toast(`Payment capture failed: ${e.message}`, "error"));
-  }, [toast, loadGroupData]);
+    capture(sid, params.get("token")).catch((e) => toast(`Payment capture failed: ${e.message}`, "error"));
+  }, [toast, capture]);
 
   // ---------- actions
   async function createGroup(name, members) {
@@ -99,16 +135,40 @@ export default function App() {
     toast(`Group “${g.name}” created`, "success");
   }
 
-  async function parseExpense(text) {
-    const res = await api.parseExpense(group.id, text, me?.id);
+  async function seedDemo() {
+    setSeeding(true);
+    try {
+      const g = await api.seedDemo();
+      await loadGroups();
+      setActiveId(g.id);
+      toast("Demo trip loaded — explore balances, insights and settle up!", "success");
+    } catch (e) {
+      toast(e.message, "error");
+    } finally {
+      setSeeding(false);
+    }
+  }
+
+  async function afterExpense(res) {
     if (res.new_members.length) await loadGroups();
     await loadGroupData(group.id);
     return res;
   }
 
+  async function parseExpense(text, source) {
+    touch();
+    return afterExpense(await api.parseExpense(group.id, text, me?.id, source));
+  }
+
+  async function scanReceipt(file, note) {
+    touch();
+    return afterExpense(await api.scanReceipt(group.id, file, note, me?.id));
+  }
+
   async function deleteExpense(id) {
     if (!window.confirm("Delete this expense?")) return;
     try {
+      touch();
       await api.deleteExpense(id);
       await loadGroupData(group.id);
     } catch (e) {
@@ -118,18 +178,21 @@ export default function App() {
 
   async function settle(debt) {
     try {
-      const { approval_url } = await api.paySettlement({
+      const res = await api.paySettlement({
         group_id: group.id,
         from_user_id: debt.from_user.id,
         to_user_id: debt.to_user.id,
         amount: debt.amount,
         currency: debt.currency,
       });
-      window.location.assign(approval_url); // PayPal sandbox approval page
+      if (res.mode === "demo") setDemoCheckout(res);
+      else window.location.assign(res.approval_url); // real PayPal sandbox approval page
     } catch (e) {
       toast(e.message, "error");
     }
   }
+
+  const liveDot = { live: "bg-emerald-400", connecting: "bg-amber-400 animate-pulse", offline: "bg-gray-600" }[live.status];
 
   return (
     <div className="flex h-full">
@@ -141,6 +204,8 @@ export default function App() {
           setSidebarOpen(false);
         }}
         onCreate={() => setShowCreate(true)}
+        onSeed={seedDemo}
+        seeding={seeding}
         health={health}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -152,7 +217,18 @@ export default function App() {
             ☰
           </button>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-semibold tracking-tight">{group?.name ?? "SplitSync AI"}</h1>
+            <h1 className="flex items-center gap-2 truncate text-lg font-semibold tracking-tight">
+              {group?.name ?? "SplitSync AI"}
+              {group && (
+                <span
+                  title={live.status === "live" ? "Live sync on — changes from other devices appear instantly" : "Reconnecting…"}
+                  className="flex items-center gap-1.5 rounded-full border border-gray-800 px-2 py-0.5 text-[10px] font-medium text-gray-400"
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${liveDot}`} />
+                  {live.status === "live" ? "LIVE" : "SYNCING"}
+                </span>
+              )}
+            </h1>
             {group && (
               <div className="mt-1 flex items-center gap-2">
                 <div className="flex -space-x-2">
@@ -185,20 +261,60 @@ export default function App() {
         ) : !group ? (
           <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
             <p className="text-5xl">💸</p>
-            <h2 className="mt-4 text-2xl font-semibold">Split expenses by just talking</h2>
+            <h2 className="mt-4 text-2xl font-semibold sm:text-3xl">Split expenses by just talking</h2>
             <p className="mt-2 max-w-md text-sm text-gray-400">
-              Create a group, type “I paid $60 for dinner with Alex and Sarah”, and SplitSync AI handles the math — then settle up instantly with PayPal.
+              Type it, say it, or snap the receipt. SplitSync AI does the math, finds the fewest payments, and settles up with PayPal in one tap.
             </p>
-            <button className={`${btnPrimary} mt-6`} onClick={() => setShowCreate(true)}>Create your first group</button>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button className={btnPrimary} onClick={() => setShowCreate(true)}>Create your first group</button>
+              <button className={btnGhost} onClick={seedDemo} disabled={seeding}>
+                {seeding ? <Spinner /> : "🌴"} Load demo trip
+              </button>
+            </div>
+            <div className="mt-10 grid max-w-2xl grid-cols-1 gap-3 text-left sm:grid-cols-3">
+              {[
+                ["🗣️", "Conversational", "Natural language, voice, and receipt photos — Gemini parses them all."],
+                ["⚡", "Smart settlement", "Debts simplified to the minimum number of payments."],
+                ["💳", "One-tap PayPal", "Settle each debt via PayPal checkout, synced live for everyone."],
+              ].map(([icon, title, body]) => (
+                <div key={title} className="rounded-2xl border border-gray-800 bg-gray-900/50 p-4">
+                  <p className="text-xl">{icon}</p>
+                  <p className="mt-2 text-sm font-semibold">{title}</p>
+                  <p className="mt-1 text-xs text-gray-400">{body}</p>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="grid flex-1 grid-cols-1 gap-5 overflow-y-auto p-4 sm:p-6 xl:grid-cols-12">
             <div className="h-[36rem] xl:sticky xl:top-0 xl:col-span-5 xl:h-[calc(100vh-8rem)]">
-              <ChatPanel group={group} me={me} parseExpense={parseExpense} />
+              <ChatPanel group={group} me={me} parseExpense={parseExpense} scanReceipt={scanReceipt} />
             </div>
             <div className="space-y-5 xl:col-span-7">
-              <BalancesPanel balances={balances} me={me} onSettle={settle} />
-              <Ledger expenses={expenses} settlements={settlements} onDelete={deleteExpense} />
+              <div className="flex gap-1 rounded-xl border border-gray-800 bg-gray-900/60 p-1" role="tablist">
+                {[
+                  ["overview", "⚖️ Balances & Activity"],
+                  ["insights", "📊 Insights & AI Copilot"],
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    role="tab"
+                    aria-selected={tab === id}
+                    onClick={() => setTab(id)}
+                    className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${tab === id ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-gray-200"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {tab === "overview" ? (
+                <>
+                  <BalancesPanel balances={balances} me={me} onSettle={settle} onNudge={setNudgeDebt} />
+                  <Ledger groupId={group.id} expenses={expenses} settlements={settlements} onDelete={deleteExpense} />
+                </>
+              ) : (
+                <InsightsPanel groupId={group.id} me={me} refreshKey={refreshKey} />
+              )}
             </div>
           </div>
         )}
@@ -209,10 +325,28 @@ export default function App() {
         open={showAddMember}
         onClose={() => setShowAddMember(false)}
         onAdd={async (name, email) => {
+          touch();
           await api.addMember(group.id, name, email);
           await loadGroups();
           await loadGroupData(group.id);
           toast(`${name} joined ${group.name}`, "success");
+        }}
+      />
+      <NudgeModal debt={nudgeDebt} groupId={group?.id} onClose={() => setNudgeDebt(null)} />
+      <DemoCheckoutModal
+        checkout={demoCheckout}
+        onApprove={async () => {
+          try {
+            await capture(demoCheckout.settlement.id, demoCheckout.settlement.paypal_order_id);
+          } catch (e) {
+            toast(`Payment failed: ${e.message}`, "error");
+          }
+          setDemoCheckout(null);
+        }}
+        onCancel={() => {
+          api.cancelSettlement(demoCheckout.settlement.id).catch(() => {});
+          setDemoCheckout(null);
+          toast("Checkout cancelled — nothing was charged.", "info");
         }}
       />
       <Toasts toasts={toasts} dismiss={(id) => setToasts((t) => t.filter((x) => x.id !== id))} />

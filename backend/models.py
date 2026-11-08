@@ -58,7 +58,10 @@ class Expense(Base):
     amount: Mapped[float] = mapped_column(Float)
     currency: Mapped[str] = mapped_column(String(3), default="USD")
     description: Mapped[str] = mapped_column(String(255))
+    category: Mapped[str] = mapped_column(String(30), default="other")
+    source: Mapped[str] = mapped_column(String(10), default="chat")  # chat | voice | receipt | demo
     raw_text: Mapped[str] = mapped_column(Text)
+    items_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # receipt line items
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     group: Mapped[Group] = relationship(back_populates="expenses")

@@ -1,6 +1,6 @@
 import { Avatar, Badge } from "./ui";
 
-export default function Sidebar({ groups, activeId, onSelect, onCreate, health, open, onClose }) {
+export default function Sidebar({ groups, activeId, onSelect, onCreate, onSeed, seeding, health, open, onClose }) {
   return (
     <>
       {open && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={onClose} />}
@@ -56,6 +56,16 @@ export default function Sidebar({ groups, activeId, onSelect, onCreate, health, 
           ))}
         </nav>
 
+        <div className="px-3 pb-3">
+          <button
+            onClick={onSeed}
+            disabled={seeding}
+            className="w-full rounded-xl border border-dashed border-gray-700 px-3 py-2 text-xs text-gray-400 transition hover:border-indigo-500/50 hover:text-gray-200 disabled:opacity-50"
+          >
+            🌴 {seeding ? "Loading…" : "Load demo trip"}
+          </button>
+        </div>
+
         <div className="space-y-2 border-t border-gray-800 px-5 py-4 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-gray-500">AI parser</span>
@@ -69,10 +79,12 @@ export default function Sidebar({ groups, activeId, onSelect, onCreate, health, 
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-500">PayPal</span>
-            {health?.paypal_configured ? (
-              <Badge color="green">{health.paypal_env}</Badge>
+            {!health ? (
+              <Badge color="red">—</Badge>
+            ) : health.paypal_mode === "sandbox" ? (
+              <Badge color="green">Sandbox</Badge>
             ) : (
-              <Badge color="amber">Not configured</Badge>
+              <Badge color="amber">Demo checkout</Badge>
             )}
           </div>
         </div>

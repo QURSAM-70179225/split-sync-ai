@@ -10,10 +10,11 @@ function PayPalMark() {
   );
 }
 
-export default function BalancesPanel({ balances, me, onSettle }) {
+export default function BalancesPanel({ balances, me, onSettle, onNudge }) {
   const [paying, setPaying] = useState(null);
   if (!balances) return null;
-  const { debts, members, currency } = balances;
+  const { debts, members, currency, naive_transfer_count: naive } = balances;
+  const saved = Math.max((naive || 0) - debts.length, 0);
 
   const nameFor = (u) => (me && u.id === me.id ? "You" : u.name);
   const verb = (u) => (me && u.id === me.id ? "owe" : "owes");
@@ -56,6 +57,16 @@ export default function BalancesPanel({ balances, me, onSettle }) {
         ))}
       </div>
 
+      {saved > 0 && (
+        <div className="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2.5 text-sm">
+          <span className="text-lg">⚡</span>
+          <p className="text-indigo-100">
+            Smart settlement: <span className="font-semibold">{debts.length} payment{debts.length !== 1 ? "s" : ""}</span> instead of{" "}
+            <span className="line-through opacity-60">{naive}</span> — {saved} fewer transfer{saved !== 1 ? "s" : ""}.
+          </p>
+        </div>
+      )}
+
       <ul className="space-y-2 p-5">
         {debts.length === 0 && (
           <li className="rounded-xl border border-dashed border-gray-800 px-4 py-6 text-center text-sm text-gray-500">🎉 Everyone is settled up.</li>
@@ -74,6 +85,13 @@ export default function BalancesPanel({ balances, me, onSettle }) {
                 <span className="font-medium text-white">{nameFor(d.to_user)}</span>{" "}
                 <span className="font-mono font-semibold text-rose-300">{money(d.amount, d.currency)}</span>
               </p>
+              <button
+                onClick={() => onNudge(d)}
+                title="Send an AI-written reminder"
+                className="rounded-xl border border-gray-700 px-2.5 py-2 text-xs font-medium text-gray-300 transition hover:bg-gray-800"
+              >
+                🔔 Nudge
+              </button>
               <button
                 onClick={() => settle(d, key)}
                 disabled={paying !== null}

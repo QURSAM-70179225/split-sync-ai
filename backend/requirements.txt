@@ -6,3 +6,4 @@ google-genai>=1.0
 requests>=2.32
 sqlalchemy>=2.0
 python-dotenv>=1.0
+python-multipart>=0.0.9
