@@ -29,7 +29,7 @@
 
 | | |
 |---|---|
-| 🌐 **Live demo** | **`https://split-sync-ai.onrender.com/** 
+| 🌐 **Live demo** | **https://split-sync-ai.onrender.com/** 
 | 🎬 **Demo video** | **`https://youtu.be/<id>`** ← *replace after uploading* |
 | 🧭 **First visit?** | A guided tour starts automatically. Click **Load demo & start** |
 
