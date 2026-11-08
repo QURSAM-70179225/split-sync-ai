@@ -32,6 +32,7 @@ export default function BalancesPanel({ balances, me, onSettle, onNudge }) {
 
   return (
     <Card
+      data-tour="balances"
       title="Balances & Settlement"
       subtitle="Debts simplified to the fewest payments"
       action={
@@ -58,7 +59,7 @@ export default function BalancesPanel({ balances, me, onSettle, onNudge }) {
       </div>
 
       {saved > 0 && (
-        <div className="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2.5 text-sm">
+        <div data-tour="smart-settlement" className="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2.5 text-sm">
           <span className="text-lg">⚡</span>
           <p className="text-indigo-100">
             Smart settlement: <span className="font-semibold">{debts.length} payment{debts.length !== 1 ? "s" : ""}</span> instead of{" "}
@@ -71,7 +72,7 @@ export default function BalancesPanel({ balances, me, onSettle, onNudge }) {
         {debts.length === 0 && (
           <li className="rounded-xl border border-dashed border-gray-800 px-4 py-6 text-center text-sm text-gray-500">🎉 Everyone is settled up.</li>
         )}
-        {debts.map((d) => {
+        {debts.map((d, idx) => {
           const key = `${d.from_user.id}-${d.to_user.id}-${d.currency}`;
           const mine = me && d.from_user.id === me.id;
           return (
@@ -85,6 +86,7 @@ export default function BalancesPanel({ balances, me, onSettle, onNudge }) {
                 <span className="font-medium text-white">{nameFor(d.to_user)}</span>{" "}
                 <span className="font-mono font-semibold text-rose-300">{money(d.amount, d.currency)}</span>
               </p>
+              <span data-tour={idx === 0 ? "debt-actions" : undefined} className="flex gap-2">
               <button
                 onClick={() => onNudge(d)}
                 title="Send an AI-written reminder"
@@ -100,6 +102,7 @@ export default function BalancesPanel({ balances, me, onSettle, onNudge }) {
                 {paying === key ? <Spinner className="h-3.5 w-3.5" /> : <PayPalMark />}
                 {paying === key ? "Opening PayPal…" : "Settle via PayPal"}
               </button>
+              </span>
             </li>
           );
         })}

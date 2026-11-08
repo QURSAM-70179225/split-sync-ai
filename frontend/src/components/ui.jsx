@@ -27,9 +27,9 @@ export function Badge({ color = "gray", children }) {
   );
 }
 
-export function Card({ title, subtitle, action, children, className = "" }) {
+export function Card({ title, subtitle, action, children, className = "", ...rest }) {
   return (
-    <section className={`flex min-h-0 flex-col rounded-2xl border border-gray-800 bg-gray-900/60 shadow-xl shadow-black/20 ${className}`}>
+    <section {...rest} className={`flex min-h-0 flex-col rounded-2xl border border-gray-800 bg-gray-900/60 shadow-xl shadow-black/20 ${className}`}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 border-b border-gray-800 px-5 py-3.5">
           <div>

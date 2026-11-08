@@ -17,6 +17,7 @@
 | ✨ **Ask your ledger** | "How much did we spend on food?" "Who owes me?" |
 | 🔔 **AI nudges** | Friendly, funny or formal reminders. Copy or share to WhatsApp |
 | 📊 **Insights** | Category breakdown, paid vs. fair share, daily spend, AI highlights |
+| 🧭 **Guided tour** | A 13-step spotlight walkthrough that starts on first visit. Replay it from ❔ Tour |
 | 🌴 **Demo trip** | A realistic 4-person trip loaded in one click |
 | 🛡️ **Works without keys** | Offline parser and simulated checkout until you add keys |
 

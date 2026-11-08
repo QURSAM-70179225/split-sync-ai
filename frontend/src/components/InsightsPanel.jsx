@@ -109,7 +109,7 @@ export default function InsightsPanel({ groupId, me, refreshKey }) {
     ? Math.round((data.settled_amount / (data.settled_amount + data.outstanding_amount)) * 100) : 100;
 
   return (
-    <Card title="Insights" subtitle="Where the money went — updated live">
+    <Card data-tour="insights" title="Insights" subtitle="Where the money went — updated live">
       <div className="space-y-5 p-5">
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           <Stat label="Total spent" value={money(data.total_spent, cur)} hint={`${data.expense_count} expenses`} />

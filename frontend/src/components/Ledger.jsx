@@ -31,6 +31,7 @@ export default function Ledger({ groupId, expenses, settlements, onDelete }) {
 
   return (
     <Card
+      data-tour="ledger"
       title="Activity Ledger"
       subtitle={`${expenses.length} expenses · ${money(total, currency)} total`}
       action={

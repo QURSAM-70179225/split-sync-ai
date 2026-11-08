@@ -29,7 +29,7 @@ export default function Sidebar({ groups, activeId, onSelect, onCreate, onSeed, 
           </button>
         </div>
 
-        <nav className="scrollbar-thin flex-1 space-y-1 overflow-y-auto px-3">
+        <nav data-tour="groups" className="scrollbar-thin flex-1 space-y-1 overflow-y-auto px-3">
           {groups.length === 0 && (
             <p className="px-2 py-6 text-center text-sm text-gray-500">No groups yet. Create one to get started.</p>
           )}
@@ -66,7 +66,7 @@ export default function Sidebar({ groups, activeId, onSelect, onCreate, onSeed, 
           </button>
         </div>
 
-        <div className="space-y-2 border-t border-gray-800 px-5 py-4 text-xs">
+        <div data-tour="status" className="space-y-2 border-t border-gray-800 px-5 py-4 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-gray-500">AI parser</span>
             {health ? (

@@ -36,7 +36,8 @@ docs       ARCHITECTURE.md · SCHEMA.md · DESIGN.md · PRODUCT_REQUIREMENTS.md 
 7. **Schema changes are additive.** A new column means: the model, `database._ADDED_COLUMNS` (for existing DBs), `SCHEMA.md` and the Pydantic schema.
 8. **Demo mode must stay honest.** Simulated payments are labelled DEMO, use `DEMO-` order IDs, and are refused when real PayPal is configured. Don't imitate PayPal's own branding in simulated UI.
 9. **API changes go everywhere.** Update `services/api.js`, `SCHEMA.md` §4 and the tests together.
-10. **UI uses the primitives.** `Card`, `Badge`, `Avatar`, `Modal`, `btnPrimary`, `inputCls` from `components/ui.jsx`. Money is always shown with `money()` in `font-mono`. Category metadata only comes from `services/categories.js`.
+10. **Keep the tour in sync.** When you move or rename a UI area, keep its `data-tour="…"` attribute and update `services/tourSteps.jsx`. New headline features get a tour step.
+11. **UI uses the primitives.** `Card`, `Badge`, `Avatar`, `Modal`, `btnPrimary`, `inputCls` from `components/ui.jsx`. Money is always shown with `money()` in `font-mono`. Category metadata only comes from `services/categories.js`.
 
 ## Conventions
 - Python 3.10+, type hints, `from __future__ import annotations` in new modules, ruff (line length 120).

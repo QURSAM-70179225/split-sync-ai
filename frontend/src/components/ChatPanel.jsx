@@ -169,7 +169,7 @@ export default function ChatPanel({ group, me, parseExpense, scanReceipt }) {
         )}
       </div>
 
-      <form onSubmit={send} className="border-t border-gray-800 p-3">
+      <form onSubmit={send} data-tour="chat-input" className="border-t border-gray-800 p-3">
         {speech.listening && (
           <div className="mb-2 flex items-center gap-2 rounded-xl bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
             <span className="h-2 w-2 animate-pulse rounded-full bg-rose-400" />
@@ -177,6 +177,7 @@ export default function ChatPanel({ group, me, parseExpense, scanReceipt }) {
           </div>
         )}
         <div className="flex items-end gap-1.5 rounded-2xl border border-gray-700 bg-gray-950 p-2 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20">
+          <span data-tour="chat-tools" className="flex gap-1">
           <input ref={fileInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={onReceipt} />
           <button
             type="button"
@@ -202,6 +203,7 @@ export default function ChatPanel({ group, me, parseExpense, scanReceipt }) {
               🎙️
             </button>
           )}
+          </span>
           <textarea
             rows={1}
             value={text}

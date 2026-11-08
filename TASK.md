@@ -15,7 +15,7 @@ Legend: ✅ done · 🟡 in progress · ⬜ to do · 🔑 needs your keys
   (No spaces around `=`, no quotes. Save, then restart the backend.)
 - [ ] Check the sidebar: **AI parser → Gemini**, **PayPal → Sandbox**
 - [ ] Note the sandbox *Personal* buyer login: Testing Tools → Sandbox Accounts
-- [ ] Rehearse `DESIGN.md` §7 (3-minute demo script) twice
+- [ ] Rehearse `DESIGN.md` §8 (3-minute demo script) twice
 - [ ] Have a real paper receipt ready for the 📷 scan
 
 ## v1: MVP ✅
@@ -37,6 +37,7 @@ Legend: ✅ done · 🟡 in progress · ⬜ to do · 🔑 needs your keys
 - ✅ 🔴 Live sync via Server-Sent Events
 - ✅ ⚡ Smart-settlement banner ("N payments instead of M")
 - ✅ 🌴 One-click demo trip
+- ✅ 🧭 Guided tour: spotlight walkthrough, auto-starts on first visit, keyboard nav, phone layout, replay from ❔ Tour
 - ✅ CSV export, ledger search
 - ✅ Automatic Gemini → offline fallback when the API errors
 - ✅ Placeholder keys in `.env` treated as unset (zero-config start)

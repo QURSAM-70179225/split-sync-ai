@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BalancesPanel from "./components/BalancesPanel";
 import ChatPanel from "./components/ChatPanel";
 import CreateGroupModal from "./components/CreateGroupModal";
 import DemoCheckoutModal from "./components/DemoCheckoutModal";
+import GuidedTour from "./components/GuidedTour";
 import InsightsPanel from "./components/InsightsPanel";
 import Ledger from "./components/Ledger";
 import NudgeModal from "./components/NudgeModal";
@@ -11,6 +12,7 @@ import { Avatar, Modal, Spinner, Toasts, btnGhost, btnPrimary, inputCls } from "
 import { useGroupEvents } from "./hooks/useGroupEvents";
 import { api } from "./services/api";
 import { money, storage } from "./services/format";
+import { buildTourSteps } from "./services/tourSteps";
 
 const LIVE_EVENT_TEXT = {
   "expense.created": (e) => `${e.by ? `${e.by} added` : "New expense:"} ${e.description}`,
@@ -37,6 +39,7 @@ export default function App() {
   const [nudgeDebt, setNudgeDebt] = useState(null);
   const [demoCheckout, setDemoCheckout] = useState(null);
   const [toasts, setToasts] = useState([]);
+  const [tourOpen, setTourOpen] = useState(false);
   const handledReturn = useRef(false);
   const lastLocalAction = useRef(0);
 
@@ -70,7 +73,11 @@ export default function App() {
     api.health().then(setHealth).catch(() => setHealth(null));
     loadGroups()
       .catch((e) => toast(e.message, "error"))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        const fromPayPal = new URLSearchParams(window.location.search).has("paypal");
+        if (!storage.get("splitsync.tourDone", false) && !fromPayPal) setTimeout(() => setTourOpen(true), 600);
+      });
   }, [loadGroups, toast]);
 
   useEffect(() => {
@@ -192,6 +199,8 @@ export default function App() {
     }
   }
 
+  const tourSteps = useMemo(() => buildTourSteps({ showTab: setTab }), []);
+
   const liveDot = { live: "bg-emerald-400", connecting: "bg-amber-400 animate-pulse", offline: "bg-gray-600" }[live.status];
 
   return (
@@ -221,6 +230,7 @@ export default function App() {
               {group?.name ?? "SplitSync AI"}
               {group && (
                 <span
+                  data-tour="live"
                   title={live.status === "live" ? "Live sync on — changes from other devices appear instantly" : "Reconnecting…"}
                   className="flex items-center gap-1.5 rounded-full border border-gray-800 px-2 py-0.5 text-[10px] font-medium text-gray-400"
                 >
@@ -240,12 +250,23 @@ export default function App() {
               </div>
             )}
           </div>
+          <button
+            onClick={() => {
+              setSidebarOpen(false);
+              setTourOpen(true);
+            }}
+            className="rounded-lg border border-gray-700 px-2.5 py-1.5 text-xs font-medium text-gray-300 transition hover:border-indigo-500/50 hover:text-white"
+            title="Take the guided tour"
+          >
+            ❔<span className="hidden sm:inline"> Tour</span>
+          </button>
           {group && (
-            <label className="flex items-center gap-2 text-xs text-gray-400">
-              Acting as
+            <label data-tour="acting-as" className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="hidden sm:inline">Acting as</span>
               <select
                 value={me?.id ?? ""}
                 onChange={(e) => setIdentity((ids) => ({ ...ids, [group.id]: Number(e.target.value) }))}
+                aria-label="Acting as"
                 className="rounded-lg border border-gray-700 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 outline-none focus:border-indigo-500"
               >
                 {group.members.map((m) => (
@@ -269,6 +290,9 @@ export default function App() {
               <button className={btnPrimary} onClick={() => setShowCreate(true)}>Create your first group</button>
               <button className={btnGhost} onClick={seedDemo} disabled={seeding}>
                 {seeding ? <Spinner /> : "🌴"} Load demo trip
+              </button>
+              <button className={btnGhost} onClick={() => setTourOpen(true)}>
+                ❔ Take the tour
               </button>
             </div>
             <div className="mt-10 grid max-w-2xl grid-cols-1 gap-3 text-left sm:grid-cols-3">
@@ -347,6 +371,16 @@ export default function App() {
           api.cancelSettlement(demoCheckout.settlement.id).catch(() => {});
           setDemoCheckout(null);
           toast("Checkout cancelled — nothing was charged.", "info");
+        }}
+      />
+      <GuidedTour
+        open={tourOpen}
+        steps={tourSteps}
+        hasGroup={Boolean(group)}
+        onSeed={seedDemo}
+        onClose={() => {
+          setTourOpen(false);
+          storage.set("splitsync.tourDone", true);
         }}
       />
       <Toasts toasts={toasts} dismiss={(id) => setToasts((t) => t.filter((x) => x.id !== id))} />
