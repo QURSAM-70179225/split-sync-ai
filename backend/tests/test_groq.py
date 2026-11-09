@@ -160,3 +160,10 @@ def test_qwen_multimodal_counts_as_vision(groq):
     state["reply"] = json.dumps(RECEIPT)
     r = ai_parser.parse_receipt(b"\x89PNG", "image/png", ["You", "Alex"], "You", "Alex had the burger")
     assert calls[0]["model"] == "qwen/qwen3.8-27b" and r._source == "groq:qwen/qwen3.8-27b"
+
+
+def test_label_shows_a_model_the_key_can_use(groq):
+    _, state = groq
+    state["models"] = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
+    assert groq_client.current_model() == "openai/gpt-oss-120b"
+    assert groq_client.current_model(vision=True) == "qwen/qwen3.8-27b"

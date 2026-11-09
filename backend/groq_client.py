@@ -94,8 +94,8 @@ def current_model(vision: bool = False) -> str:
     kind = "vision" if vision else "text"
     if _working[kind]:
         return _working[kind]  # type: ignore[return-value]
-    configured = get_settings().groq_vision_model if vision else get_settings().groq_model
-    return configured or (VISION_PREFERENCES if vision else TEXT_PREFERENCES)[0]
+    candidates = _candidates(vision)  # first model this key can actually use
+    return candidates[0] if candidates else (VISION_PREFERENCES if vision else TEXT_PREFERENCES)[0]
 
 
 def _post(model: str, messages: list, json_mode: bool, temperature: float) -> str:
