@@ -7,20 +7,21 @@
 **Split group expenses by just talking. AI does the math, and PayPal settles it in one tap.**
 
 <a href="https://split-sync-ai.onrender.com"><img src="https://img.shields.io/badge/▶%20Live%20demo-split--sync--ai.onrender.com-6366f1?style=for-the-badge" alt="Open the live demo"></a>
+<a href="https://youtu.be/J7Zn1pr2FkE"><img src="https://img.shields.io/badge/▶%20Demo%20video-YouTube-ff0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the demo video"></a>
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/QURSAM-70179225/split-sync-ai)
 
 [![CI](https://github.com/QURSAM-70179225/split-sync-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/QURSAM-70179225/split-sync-ai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg)](LICENSE)
 ![PayPal](https://img.shields.io/badge/PayPal-Orders%20v2%20Sandbox-003087?logo=paypal&logoColor=white)
-![Groq](https://img.shields.io/badge/AI-Groq%20Llama%20%7C%20Gemini-f55036)
+![Groq](https://img.shields.io/badge/AI-Groq%20(GPT--OSS%20%2B%20Qwen)-f55036)
 ![Render](https://img.shields.io/badge/Hosted%20on-Render-46E3B7?logo=render&logoColor=black)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React%2019-20232a?logo=react&logoColor=61DAFB)
 ![Tailwind](https://img.shields.io/badge/Tailwind%20v4-0b1120?logo=tailwindcss&logoColor=38BDF8)
 ![Tests](https://img.shields.io/badge/tests-39%20passing-22c55e)
 
-**[🌐 Live demo](https://split-sync-ai.onrender.com)** · **[🎬 Video](#-try-it-now)** · **[⚡ Run in 2 min](#-run-it-locally)** · **[🏗️ How it works](#%EF%B8%8F-how-it-works)** · **[🏆 Judges' guide](#-for-judges)**
+**[🌐 Live demo](https://split-sync-ai.onrender.com)** · **[🎬 Video](https://youtu.be/J7Zn1pr2FkE)** · **[⚡ Run in 2 min](#-run-it-locally)** · **[🏗️ How it works](#%EF%B8%8F-how-it-works)** · **[🏆 Judges' guide](#-for-judges)**
 
 <img src="docs/screenshots/dashboard.png" alt="SplitSync AI dashboard: conversational expense chat, balances with smart settlement, and Settle via PayPal buttons" width="100%">
 
@@ -33,7 +34,7 @@
 | | |
 |---|---|
 | 🌐 **Live demo** | **[split-sync-ai.onrender.com](https://split-sync-ai.onrender.com)** |
-| 🎬 **Demo video** | **`https://youtu.be/<id>`** ← *replace after uploading* |
+| 🎬 **Demo video** | **[Watch on YouTube (2:22)](https://youtu.be/J7Zn1pr2FkE)** |
 | 🧭 **First visit?** | A guided tour starts automatically. Click **Load demo & start** |
 
 > 💡 The hosted demo may take ~50 s to wake up on first load (free tier).
@@ -58,10 +59,10 @@
 <td width="50%" valign="top">
 
 ### 🗣️ Conversational logging
-Plain English becomes a **schema-validated** expense via LLM JSON output (Groq Llama or Gemini). "I"/"me" map to you, nicknames map to members, and the category is detected automatically.
+Plain English becomes a **schema-validated** expense via LLM JSON output (GPT-OSS 120B on Groq, or Gemini). "I"/"me" map to you, nicknames map to members, and the category is detected automatically.
 
 ### 📷 Receipt scanning with itemized splits
-A vision model (Llama 4 on Groq, or Gemini) reads every line. Add a note like *"Alex had the steak"* and items are assigned per person, with **tax and tip spread proportionally**.
+A vision model (Qwen 3.8 on Groq, or Gemini) reads every line. Add a note like *"Alex had the steak"* and items are assigned per person, with **tax and tip spread proportionally**.
 
 ### 🎙️ Voice input
 Tap the mic and say it (Web Speech API).
@@ -142,9 +143,9 @@ sequenceDiagram
 </details>
 
 <details open>
-<summary><b>How AI is used (Groq · Llama, with Google Gemini as an alternative)</b></summary>
+<summary><b>How AI is used (Groq, with Google Gemini as an alternative)</b></summary>
 
-The app runs on **Groq** (fast Llama models) when `GROQ_API_KEY` is set, or **Google Gemini** when `GEMINI_API_KEY` is set. Models are discovered from the provider's live model list, so a retired model name never breaks the app.
+The app runs on **Groq** (GPT-OSS 120B for text, Qwen 3.8 for receipt images) when `GROQ_API_KEY` is set, or **Google Gemini** when `GEMINI_API_KEY` is set. Models are discovered from the provider's live model list, so a retired model name never breaks the app.
 
 | Feature | AI capability | Guardrail |
 |---|---|---|
@@ -187,7 +188,7 @@ flowchart TB
         Bus["📡 events.py<br/>SSE broker"]
         DB[("🗄️ SQLite")]
     end
-    Gemini(["Groq Llama / Google Gemini"])
+    Gemini(["Groq (GPT-OSS, Qwen) / Google Gemini"])
     PayPal(["PayPal Sandbox"])
 
     Chat -->|"REST"| AI
@@ -206,7 +207,7 @@ flowchart TB
 |---|---|
 | Frontend | React 19, Vite, Tailwind CSS v4, EventSource, Web Speech API |
 | Backend | FastAPI, SQLAlchemy 2, Pydantic v2, pydantic-settings |
-| AI | Groq (Llama 3.3 / Llama 4 vision) over its OpenAI-compatible API, or Google Gemini via `google-genai` |
+| AI | Groq (GPT-OSS 120B, Qwen 3.8 vision, auto-selected) over its OpenAI-compatible API, or Google Gemini via `google-genai` |
 | Hosting | Render (one-click blueprint, single Docker service) |
 | Payments | PayPal REST: OAuth2 + Orders v2 (Sandbox) |
 | Ops | Docker (single image), Render blueprint, GitHub Actions, pytest, ruff |

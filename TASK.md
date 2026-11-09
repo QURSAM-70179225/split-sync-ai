@@ -5,7 +5,7 @@ Legend: ✅ done · 🟡 in progress · ⬜ to do · 🔑 needs your keys
 ## 🚀 Submission (see SUBMISSION.md)
 - [x] Create the public GitHub repo and push
 - [x] Deploy to Render: https://split-sync-ai.onrender.com
-- [ ] Record a video under 3 minutes (shot list in SUBMISSION.md) and upload it as **Public** on YouTube
+- [x] Demo video: https://youtu.be/J7Zn1pr2FkE
 - [ ] Tick sponsor tools: **PayPal**, **Render**
 - [ ] Invite teammates and confirm they accepted
 

@@ -6,10 +6,10 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 
 | # | Requirement | Status | Where |
 |---|---|---|---|
-| 1 | Project **meaningfully uses PayPal** (sandbox OK) **and AI** | ✅ | PayPal Orders v2 create, approve, capture for every settle-up. An LLM (Groq Llama, or Gemini) for text parsing, receipt vision, the copilot and nudges. See [How PayPal is used](#how-paypal-is-used) and [How AI is used](#how-ai-is-used) |
+| 1 | Project **meaningfully uses PayPal** (sandbox OK) **and AI** | ✅ | PayPal Orders v2 create, approve, capture for every settle-up. An LLM on Groq (GPT-OSS 120B, Qwen 3.8 vision), or Gemini, for text parsing, receipt vision, the copilot and nudges. See [How PayPal is used](#how-paypal-is-used) and [How AI is used](#how-ai-is-used) |
 | 2 | **Judges can run it**: hosted URL or run instructions | ✅ | Run instructions: [README → Run it](README.md#-run-it-locally). Hosted: deploy with the Render button in [DEPLOY.md](DEPLOY.md), then paste the URL below |
 | 3 | **Public repo** with README and an **open-source license** | ✅ | [README.md](README.md) · [LICENSE](LICENSE) (MIT). Make sure the repo is **Public** |
-| 4 | **Public YouTube video under 3 minutes** | 🔲 *you* | Use the [video shot list](#-video-shot-list-under-3-min) below. Set visibility to **Public** |
+| 4 | **Public YouTube video under 3 minutes** | ✅ | Use the [video shot list](#-video-shot-list-under-3-min) below. Set visibility to **Public** |
 | 5 | **Sponsor tools selected** on the form | 🔲 *you* | Select **PayPal** and **Render** (the app is hosted on Render with a one-click `render.yaml` blueprint, which qualifies for *Best Use of Render*). Groq and Gemini aren't hackathon sponsors; list them under "Built with" |
 | 6 | **Teammates invited and accepted** | 🔲 *you* | Invite them on the hackathon platform and make sure each one **accepts** before the deadline |
 
@@ -65,7 +65,7 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 > PayPal is the settlement layer. When a member clicks **Settle via PayPal**, the backend authenticates with OAuth2 client credentials (token cached) and calls **Orders v2 `POST /v2/checkout/orders`** with `intent: CAPTURE`. It sets an `experience_context` with `return_url` and `cancel_url` that point back to the app, `user_action: PAY_NOW` and `shipping_preference: NO_SHIPPING`. The debtor approves on PayPal's checkout page. On return, the app calls **`POST /v2/checkout/orders/{id}/capture`**. Capture is idempotent (`ORDER_ALREADY_CAPTURED` counts as success) and is only accepted when the order ID matches the settlement and the amount doesn't exceed the outstanding debt. A successful capture marks the debtor's splits as paid and broadcasts a live update to the whole group. Optional `payee.email_address` routing can send each payment straight to the creditor's PayPal account.
 
 ### How AI is used
-> The AI layer runs on **Groq** (Llama 3.3 70B for text, Llama 4 Scout for receipt images) through Groq's OpenAI-compatible API, with **Google Gemini** supported as an alternative provider. Models are auto-discovered from the provider's live model list, and every call has a 25 s timeout. It powers four features:
+> The AI layer runs on **Groq** (GPT-OSS 120B for text, Qwen 3.8 for receipt images) through Groq's OpenAI-compatible API, with **Google Gemini** supported as an alternative provider. Models are auto-discovered from the provider's live model list, and every call has a 25 s timeout. It powers four features:
 > 1. **Conversational parsing.** Free text becomes strict JSON (JSON mode + the `ParsedExpense` Pydantic schema): payer, total, currency, participants, equal or custom shares, category. Pronouns resolve to the sender, and nicknames map to member names.
 > 2. **Receipt vision.** A photo plus an optional note becomes a `ParsedReceipt`: merchant, line items, per-item assignees, tax and tip, and per-person shares.
 > 3. **Ledger copilot.** Natural-language questions are answered from a compact JSON snapshot of the ledger.
@@ -74,16 +74,16 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 > Every AI result is validated server-side (cent-exact sums, positive amounts) before it touches money. Each feature also has a deterministic fallback, so the app keeps working when there's no key or the API errors.
 
 **Built with**
-> Python, FastAPI, SQLAlchemy, SQLite, Pydantic, Groq (Llama 3.3, Llama 4 Scout), Google Gemini (google-genai), PayPal REST Orders v2, React 19, Vite, Tailwind CSS v4, Server-Sent Events, Web Speech API, Docker, Render, GitHub Actions, pytest
+> Python, FastAPI, SQLAlchemy, SQLite, Pydantic, Groq (GPT-OSS 120B, Qwen 3.8), Google Gemini (google-genai), PayPal REST Orders v2, React 19, Vite, Tailwind CSS v4, Server-Sent Events, Web Speech API, Docker, Render, GitHub Actions, pytest
 
 **Sponsor tools to select:** PayPal · Render
 
-**AI tools used (for the "Tools" field):** Groq API with Llama 3.3 70B (expense parsing, copilot, nudges) and Llama 4 Scout (receipt vision). Google Gemini is supported as an alternative provider.
+**AI tools used (for the "Tools" field):** Groq API: GPT-OSS 120B (expense parsing, copilot, nudges) and Qwen 3.8 27B (receipt images). Models are auto-selected from the key's live model list. Google Gemini is supported as an alternative provider.
 
 **Links**
 > - Repo: https://github.com/QURSAM-70179225/split-sync-ai
 > - Live demo: https://split-sync-ai.onrender.com
-> - Video: `https://youtu.be/<id>` *(after uploading)*
+> - Video: https://youtu.be/J7Zn1pr2FkE
 
 **Challenges we ran into**
 > Making LLM output safe enough to move money: strict schemas plus server-side validation and cent-exact math. Live sync from synchronous request handlers, done with a thread-safe broker into an async SSE stream. Keeping the demo bulletproof, with offline fallbacks for every AI feature and a clearly labelled simulated checkout when sandbox keys are missing.
@@ -110,6 +110,6 @@ Record at 1080p with the browser zoomed to 110%. Use the hosted URL with keys se
 | 1:35–1:50 | Balances: the ⚡ banner | "We simplify the group's debts. Three payments instead of six." |
 | 1:50–2:25 | **Settle via PayPal** → PayPal Sandbox login → Pay → back in the app with the debt gone. Second window shows the 🔴 Live toast | "One tap opens PayPal checkout. We create the order, capture it on return, and every friend's screen updates live." |
 | 2:25–2:45 | 🔔 Nudge (Funny) → Insights → ask *"How much did we spend on food?"* | "AI nudges chase debts politely, and the copilot answers questions about your money." |
-| 2:45–2:58 | README / architecture diagram | "FastAPI, React, Groq Llama and PayPal Orders v2, deployed on Render. Tested, open source. SplitSync AI: talk, split, settle." |
+| 2:45–2:58 | README / architecture diagram | "FastAPI, React, Groq AI and PayPal Orders v2, deployed on Render. Tested, open source. SplitSync AI: talk, split, settle." |
 
 **Tips:** close other tabs, turn on Do Not Disturb, log in to the sandbox buyer account in advance (Testing Tools → Sandbox Accounts → *Personal*), and wake the Render instance before recording.
