@@ -1,3 +1,4 @@
+import { aiLabel } from "../services/format";
 import { Avatar, Badge } from "./ui";
 
 export default function Sidebar({ groups, activeId, onSelect, onCreate, onSeed, seeding, health, open, onClose }) {
@@ -71,7 +72,7 @@ export default function Sidebar({ groups, activeId, onSelect, onCreate, onSeed, 
             <span className="text-gray-500">AI parser</span>
             {health ? (
               <Badge color={health.ai_mode === "offline" ? "amber" : "green"}>
-                {health.ai_mode === "offline" ? "Offline fallback" : health.ai_mode.replace("gemini:", "Gemini · ")}
+                {aiLabel(health.ai_mode)}
               </Badge>
             ) : (
               <Badge color="red">API offline</Badge>

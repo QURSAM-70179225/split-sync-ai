@@ -91,7 +91,7 @@ def test_receipt_requires_ai(client, trio):
     gid, ids = trio
     r = client.post(f"/api/groups/{gid}/expenses/receipt", files={"file": ("r.png", b"\x89PNG", "image/png")},
                     data={"sender_id": str(ids["You"])})
-    assert r.status_code == 422 and "Gemini" in r.json()["detail"]
+    assert r.status_code == 422 and "AI key" in r.json()["detail"]
     r = client.post(f"/api/groups/{gid}/expenses/receipt", files={"file": ("r.txt", b"hi", "text/plain")})
     assert r.status_code == 415
 

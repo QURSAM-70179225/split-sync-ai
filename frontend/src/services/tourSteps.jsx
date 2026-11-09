@@ -34,7 +34,7 @@ export function buildTourSteps({ showTab }) {
       id: "chat",
       target: "chat-input",
       title: "Just say what happened",
-      body: "Type an expense in plain English. Gemini figures out who paid, how much, who shares it and the category, then splits it to the cent.",
+      body: "Type an expense in plain English. The AI figures out who paid, how much, who shares it and the category, then splits it to the cent.",
       tryIt: "I paid $60 for dinner, split between me, Alex and Sarah",
     },
     {
@@ -98,7 +98,7 @@ export function buildTourSteps({ showTab }) {
       id: "status",
       target: "status",
       title: "AI & PayPal status",
-      body: "Shows whether Gemini and PayPal Sandbox are connected. Without keys the app still works in offline / demo mode.",
+      body: "Shows which AI model (Groq or Gemini) and whether PayPal Sandbox are connected. Without keys the app still works in offline / demo mode.",
     },
     {
       id: "done",

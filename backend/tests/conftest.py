@@ -10,6 +10,7 @@ _tmp = tempfile.mkdtemp()
 os.environ.update(
     AI_OFFLINE_MODE="true",
     GEMINI_API_KEY="",
+    GROQ_API_KEY="",
     PAYPAL_MODE="demo",
     PAYPAL_CLIENT_ID="",
     PAYPAL_CLIENT_SECRET="",

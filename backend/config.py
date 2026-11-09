@@ -10,9 +10,15 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # --- AI ---
+    # auto -> Groq if GROQ_API_KEY is set, else Gemini if GEMINI_API_KEY is set, else offline
+    ai_provider: Literal["auto", "groq", "gemini"] = "auto"
+    groq_api_key: str = ""
+    groq_model: str = ""          # empty = auto-pick from the models your key can use
+    groq_vision_model: str = ""   # used for receipt photos; empty = auto-pick
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.8-flash"
     ai_offline_mode: bool = False
+    ai_timeout_s: int = 25        # hard limit per AI request
 
     # --- PayPal ---
     paypal_client_id: str = ""
@@ -37,7 +43,7 @@ class Settings(BaseSettings):
     # Set automatically by Render; used as the public URL when FRONTEND_URL is left at its default.
     render_external_url: str = ""
 
-    @field_validator("gemini_api_key", "paypal_client_id", "paypal_client_secret", mode="before")
+    @field_validator("groq_api_key", "gemini_api_key", "paypal_client_id", "paypal_client_secret", mode="before")
     @classmethod
     def _ignore_placeholders(cls, v):
         """Treat template values like 'your-gemini-api-key' as unset, so a fresh .env just works."""
@@ -45,8 +51,19 @@ class Settings(BaseSettings):
         return "" if v.lower().startswith(("your-", "your_", "<", "changeme")) else v
 
     @property
+    def active_ai_provider(self) -> str:
+        """'groq', 'gemini' or '' (offline)."""
+        if self.ai_offline_mode:
+            return ""
+        if self.ai_provider == "groq":
+            return "groq" if self.groq_api_key else ""
+        if self.ai_provider == "gemini":
+            return "gemini" if self.gemini_api_key else ""
+        return "groq" if self.groq_api_key else "gemini" if self.gemini_api_key else ""
+
+    @property
     def ai_enabled(self) -> bool:
-        return bool(self.gemini_api_key) and not self.ai_offline_mode
+        return bool(self.active_ai_provider)
 
     @property
     def public_url(self) -> str:

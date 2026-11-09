@@ -9,6 +9,8 @@ services:
     autoDeploy: true
     envVars:
       # Optional: leave blank for offline AI mode / simulated checkout
+      - key: GROQ_API_KEY
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: PAYPAL_CLIENT_ID

@@ -1,3 +1,11 @@
+/** "groq:llama-3.3-70b-versatile" -> "Groq · llama-3.3-70b-versatile"; "offline" -> "Offline fallback" */
+export function aiLabel(mode = "offline") {
+  if (!mode || mode === "offline") return "Offline fallback";
+  const [provider, model] = mode.split(":");
+  const name = { groq: "Groq", gemini: "Gemini" }[provider] || provider;
+  return model ? `${name} · ${model.split("/").pop()}` : name;
+}
+
 export function money(amount, currency = "USD") {
   try {
     return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amount);

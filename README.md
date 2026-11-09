@@ -4,7 +4,7 @@
 
 ### Talk. Split. Settle.
 
-**Split group expenses by just talking. Google Gemini does the math, and PayPal settles it in one tap.**
+**Split group expenses by just talking. AI does the math, and PayPal settles it in one tap.**
 
 <a href="https://split-sync-ai.onrender.com"><img src="https://img.shields.io/badge/▶%20Live%20demo-split--sync--ai.onrender.com-6366f1?style=for-the-badge" alt="Open the live demo"></a>
 
@@ -13,11 +13,12 @@
 [![CI](https://github.com/QURSAM-70179225/split-sync-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/QURSAM-70179225/split-sync-ai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg)](LICENSE)
 ![PayPal](https://img.shields.io/badge/PayPal-Orders%20v2%20Sandbox-003087?logo=paypal&logoColor=white)
-![Gemini](https://img.shields.io/badge/Google%20Gemini-3.8%20Flash-8E75B2?logo=googlegemini&logoColor=white)
+![Groq](https://img.shields.io/badge/AI-Groq%20Llama%20%7C%20Gemini-f55036)
+![Render](https://img.shields.io/badge/Hosted%20on-Render-46E3B7?logo=render&logoColor=black)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React%2019-20232a?logo=react&logoColor=61DAFB)
 ![Tailwind](https://img.shields.io/badge/Tailwind%20v4-0b1120?logo=tailwindcss&logoColor=38BDF8)
-![Tests](https://img.shields.io/badge/tests-16%20passing-22c55e)
+![Tests](https://img.shields.io/badge/tests-31%20passing-22c55e)
 
 **[🌐 Live demo](https://split-sync-ai.onrender.com)** · **[🎬 Video](#-try-it-now)** · **[⚡ Run in 2 min](#-run-it-locally)** · **[🏗️ How it works](#%EF%B8%8F-how-it-works)** · **[🏆 Judges' guide](#-for-judges)**
 
@@ -57,10 +58,10 @@
 <td width="50%" valign="top">
 
 ### 🗣️ Conversational logging
-Plain English becomes a **schema-validated** expense via Gemini structured output. "I"/"me" map to you, nicknames map to members, and the category is detected automatically.
+Plain English becomes a **schema-validated** expense via LLM JSON output (Groq Llama or Gemini). "I"/"me" map to you, nicknames map to members, and the category is detected automatically.
 
 ### 📷 Receipt scanning with itemized splits
-Gemini Vision reads every line. Add a note like *"Alex had the steak"* and items are assigned per person, with **tax and tip spread proportionally**.
+A vision model (Llama 4 on Groq, or Gemini) reads every line. Add a note like *"Alex had the steak"* and items are assigned per person, with **tax and tip spread proportionally**.
 
 ### 🎙️ Voice input
 Tap the mic and say it (Web Speech API).
@@ -141,16 +142,18 @@ sequenceDiagram
 </details>
 
 <details open>
-<summary><b>How AI (Google Gemini) is used</b></summary>
+<summary><b>How AI is used (Groq · Llama, with Google Gemini as an alternative)</b></summary>
 
-| Feature | Gemini capability | Guardrail |
+The app runs on **Groq** (fast Llama models) when `GROQ_API_KEY` is set, or **Google Gemini** when `GEMINI_API_KEY` is set. Models are discovered from the provider's live model list, so a retired model name never breaks the app.
+
+| Feature | AI capability | Guardrail |
 |---|---|---|
-| 🗣️ Text → expense | `response_schema=ParsedExpense` (Pydantic) | Cent-exact split math, sum checks, positive amounts |
-| 📷 Receipt → itemized split | Vision + `response_schema=ParsedReceipt` | Shares scaled to the printed total (tax and tip) |
+| 🗣️ Text → expense | JSON mode + the `ParsedExpense` Pydantic schema | Cent-exact split math, sum checks, positive amounts |
+| 📷 Receipt → itemized split | Vision model + the `ParsedReceipt` schema | Shares scaled to the printed total (tax and tip) |
 | ✨ Ask your ledger | Grounded Q&A over a compact ledger JSON | Answers only from the data provided |
 | 🔔 Nudges | Tone-controlled generation | Template fallback |
 
-**Every AI feature has a deterministic fallback.** The app fully demos even without a key, and if Gemini errors it switches over automatically. See [`ai_parser.py`](backend/ai_parser.py).
+**Every AI feature has a deterministic fallback.** The app fully demos even without a key, and if the AI errors or times out (25 s hard limit) it switches over automatically, and says so in the chat. See [`ai_parser.py`](backend/ai_parser.py).
 </details>
 
 <details>
@@ -178,13 +181,13 @@ flowchart TB
     end
     subgraph Server["⚙️ FastAPI backend"]
         direction LR
-        AI["🤖 ai_parser.py<br/>schemas + fallbacks"]
+        AI["🤖 ai_parser.py + groq_client.py<br/>schemas + fallbacks"]
         Ledger["🧮 ledger.py<br/>cent-exact splits<br/>debt simplification"]
         PPC["💳 paypal_client.py<br/>OAuth2 + Orders v2"]
         Bus["📡 events.py<br/>SSE broker"]
         DB[("🗄️ SQLite")]
     end
-    Gemini(["Google Gemini"])
+    Gemini(["Groq Llama / Google Gemini"])
     PayPal(["PayPal Sandbox"])
 
     Chat -->|"REST"| AI
@@ -203,7 +206,8 @@ flowchart TB
 |---|---|
 | Frontend | React 19, Vite, Tailwind CSS v4, EventSource, Web Speech API |
 | Backend | FastAPI, SQLAlchemy 2, Pydantic v2, pydantic-settings |
-| AI | Google Gemini via `google-genai` (structured output + vision) |
+| AI | Groq (Llama 3.3 / Llama 4 vision) over its OpenAI-compatible API, or Google Gemini via `google-genai` |
+| Hosting | Render (one-click blueprint, single Docker service) |
 | Payments | PayPal REST: OAuth2 + Orders v2 (Sandbox) |
 | Ops | Docker (single image), Render blueprint, GitHub Actions, pytest, ruff |
 
@@ -268,12 +272,13 @@ On Windows, use `.venv\Scripts\python` in place of `.venv/bin/python`.
 Edit **`backend/.env`**:
 
 ```ini
-GEMINI_API_KEY=AIza...          # https://aistudio.google.com/app/apikey
+GROQ_API_KEY=gsk_...            # https://console.groq.com/keys  (recommended: fast, free tier)
+GEMINI_API_KEY=AIza...          # optional alternative: https://aistudio.google.com/app/apikey
 PAYPAL_CLIENT_ID=...            # developer.paypal.com → Apps & Credentials → Sandbox
 PAYPAL_CLIENT_SECRET=...
 ```
 
-Restart the backend. The sidebar should show **Gemini** and **Sandbox**. For the sandbox buyer login, see developer.paypal.com → Testing Tools → Sandbox Accounts (*Personal*).
+Restart the backend. The sidebar should show **Groq · …** (or **Gemini · …**) and **Sandbox**. You can also open `/api/health/ai` to run a live AI check. For the sandbox buyer login, see developer.paypal.com → Testing Tools → Sandbox Accounts (*Personal*).
 
 ---
 
@@ -289,7 +294,7 @@ Click **[Deploy to Render](https://render.com/deploy?repo=https://github.com/QUR
 cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check .
 ```
 
-- ✅ **16 tests**: cent-exact splits, balance invariants (Σ = 0), demo settlement and idempotent capture, insights, copilot, nudges, CSV, receipt validation, placeholder-key handling
+- ✅ **31 tests**: cent-exact splits, balance invariants (Σ = 0), demo settlement and idempotent capture, insights, copilot, nudges, CSV, receipt validation, Groq and Gemini model rollover, AI fallbacks, key scrubbing
 - ✅ **CI** on every push: lint, test, frontend build
 - ✅ **Safe by design**: secrets stay server-side, uploads are checked for type and size, AI output is validated before it touches money
 
@@ -299,7 +304,8 @@ cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check .
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/groups/{id}/expenses/parse` | Text → AI → expense + splits |
-| `POST` | `/api/groups/{id}/expenses/receipt` | Photo → Gemini Vision → itemized expense |
+| `POST` | `/api/groups/{id}/expenses/receipt` | Photo → vision model → itemized expense |
+| `GET` | `/api/health/ai` | Live AI check (plain + structured call) |
 | `GET` | `/api/groups/{id}/balances` | Net balances + simplified debts |
 | `POST` | `/api/settlements/pay` | Create a PayPal order → approval URL |
 | `POST` | `/api/settlements/{id}/capture` | Capture the PayPal order |
@@ -315,7 +321,7 @@ Full list with request and response shapes: **[SCHEMA.md §4](SCHEMA.md#4-rest-a
 
 ## 🗺️ Roadmap
 
-- [x] Conversational, voice and receipt logging with Gemini
+- [x] Conversational, voice and receipt logging with AI (Groq or Gemini)
 - [x] PayPal Orders v2 settlement with live sync
 - [x] Insights, copilot, nudges, guided tour
 - [ ] Auth and invite links
@@ -334,5 +340,5 @@ PRs welcome! Read **[CLAUDE.md](CLAUDE.md)** (house rules for humans and AI agen
 
 <div align="center">
 <br>
-<b>Built with 💜 for the hackathon · Powered by <a href="https://ai.google.dev">Google Gemini</a> and <a href="https://developer.paypal.com">PayPal</a></b>
+<b>Built with 💜 for the hackathon · Powered by <a href="https://developer.paypal.com">PayPal</a>, <a href="https://groq.com">Groq</a> and <a href="https://render.com">Render</a></b>
 </div>

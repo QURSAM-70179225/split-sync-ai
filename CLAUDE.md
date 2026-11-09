@@ -7,7 +7,7 @@ SplitSync AI: conversational group expenses (FastAPI + Gemini) with PayPal settl
 
 ## Map
 ```
-backend/   main.py (routes only) · ledger.py (money math) · ai_parser.py (all LLM calls)
+backend/   main.py (routes only) · ledger.py (money math) · ai_parser.py (all LLM calls) · groq_client.py
            insights.py · events.py (SSE broker) · paypal_client.py · models.py · schemas.py
            config.py · database.py (+ additive migrations) · demo_data.py · tests/
 frontend/  src/App.jsx (state + orchestration) · components/ · hooks/ · services/api.js

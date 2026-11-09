@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSpeech } from "../hooks/useSpeech";
 import { cat } from "../services/categories";
-import { money } from "../services/format";
+import { aiLabel, money } from "../services/format";
 import { Badge, Card, Spinner } from "./ui";
 
 const EXAMPLES = [
@@ -49,7 +49,7 @@ function ExpenseCard({ result }) {
       <div className="mt-2 flex flex-wrap gap-1.5">
         <Badge color="indigo">{parsed.split_type === "equal" ? "Split equally" : "Custom split"}</Badge>
         <Badge>{c.label}</Badge>
-        {ai_mode !== "offline" && <Badge color="green">✨ Gemini</Badge>}
+        {ai_mode !== "offline" && <Badge color="green">✨ {aiLabel(ai_mode).split(" · ")[0]}</Badge>}
         {new_members.map((u) => (
           <Badge key={u.id} color="amber">+ added {u.name}</Badge>
         ))}

@@ -6,7 +6,7 @@ Legend: ✅ done · 🟡 in progress · ⬜ to do · 🔑 needs your keys
 - [x] Create the public GitHub repo and push
 - [x] Deploy to Render: https://split-sync-ai.onrender.com
 - [ ] Record a video under 3 minutes (shot list in SUBMISSION.md) and upload it as **Public** on YouTube
-- [ ] Tick sponsor tools: **PayPal**, **Google Gemini**
+- [ ] Tick sponsor tools: **PayPal**, **Render**
 - [ ] Invite teammates and confirm they accepted
 
 ## 🔑 Before the demo (you, at the end)

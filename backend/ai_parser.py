@@ -1,4 +1,4 @@
-"""All Gemini-powered intelligence for SplitSync AI.
+"""All AI-powered intelligence for SplitSync AI (Groq or Google Gemini).
 
 * parse_expense_prompt  – free text  -> ParsedExpense   (structured output)
 * parse_receipt         – photo      -> ParsedReceipt   (vision + structured output)
@@ -10,11 +10,13 @@ app still demos end to end without an API key (or when the API is down / out of 
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import re
 from functools import lru_cache
 
+import groq_client
 from config import get_settings
 from schemas import CATEGORIES, ParsedExpense, ParsedReceipt
 
@@ -31,11 +33,14 @@ _working_model: str | None = None
 
 
 def current_model() -> str:
+    if get_settings().active_ai_provider == "groq":
+        return groq_client.current_model()
     return _working_model or get_settings().gemini_model
 
 
 def ai_mode() -> str:
-    return f"gemini:{current_model()}" if get_settings().ai_enabled else "offline"
+    provider = get_settings().active_ai_provider
+    return f"{provider}:{current_model()}" if provider else "offline"
 
 
 def _is_model_missing(exc: Exception) -> bool:
@@ -102,8 +107,10 @@ def _client():
     `genai.Client(...).models.generate_content(...)` fails with "client has been closed".
     """
     from google import genai
+    from google.genai import types
 
-    return genai.Client(api_key=get_settings().gemini_api_key)
+    s = get_settings()
+    return genai.Client(api_key=s.gemini_api_key, http_options=types.HttpOptions(timeout=s.ai_timeout_s * 1000))
 
 
 def _generate(contents, system: str, schema=None, temperature: float = 0.0, schema_mode: str = "pydantic"):
@@ -141,16 +148,20 @@ def _generate(contents, system: str, schema=None, temperature: float = 0.0, sche
     raise last_exc or RuntimeError("No Gemini model available")
 
 
+def _parse_json_text(text: str, schema):
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("The AI returned an empty response")
+    if text.startswith("```"):  # tolerate fenced JSON
+        text = text.strip("`").removeprefix("json").strip()
+    return schema.model_validate_json(text)
+
+
 def _structured(response, schema):
     parsed = getattr(response, "parsed", None)
     if isinstance(parsed, schema):
         return parsed
-    text = (response.text or "").strip()
-    if not text:
-        raise ValueError("Gemini returned an empty response")
-    if text.startswith("```"):  # tolerate fenced JSON
-        text = text.strip("`").removeprefix("json").strip()
-    return schema.model_validate_json(text)
+    return _parse_json_text(response.text, schema)
 
 
 SCHEMA_MODES = ("pydantic", "json", "prompt")
@@ -162,7 +173,8 @@ def _is_fatal(exc: Exception) -> bool:
     """Errors no schema strategy can fix: bad key, permissions, quota, retired model."""
     code = getattr(exc, "code", None)
     msg = str(exc)
-    return code in (401, 403, 429) or "RESOURCE_EXHAUSTED" in msg or "API key not valid" in msg or _is_model_missing(exc)
+    return (code in (401, 403, 429) or "RESOURCE_EXHAUSTED" in msg or "API key not valid" in msg
+            or "timed out" in msg.lower() or "Timeout" in type(exc).__name__ or _is_model_missing(exc))
 
 
 def _generate_structured(contents, system: str, schema, temperature: float = 0.0):
@@ -191,6 +203,41 @@ def _generate_structured(contents, system: str, schema, temperature: float = 0.0
         return result
     _last_ai_errors[:] = errors
     raise RuntimeError(" | ".join(errors) or "Gemini structured output failed")
+
+
+# ------------------------------------------------------------------ provider dispatch
+def _ai_text(user: str, system: str, temperature: float = 0.0) -> str:
+    """Plain-text completion with the active provider."""
+    if get_settings().active_ai_provider == "groq":
+        return groq_client.chat([{"role": "system", "content": system}, {"role": "user", "content": user}],
+                                temperature=temperature).strip()
+    return (_generate(user, system, temperature=temperature).text or "").strip()
+
+
+def _ai_structured(user: str, system: str, schema, image: tuple[bytes, str] | None = None):
+    """Schema-validated JSON from the active provider (optionally with an image)."""
+    if get_settings().active_ai_provider == "groq":
+        system = (f"{system}\n\nReturn ONLY a JSON object that matches this JSON Schema "
+                  f"(no prose, no code fences):\n{json.dumps(schema.model_json_schema())}")
+        content: str | list = user
+        if image:
+            data_uri = f"data:{image[1]};base64,{base64.b64encode(image[0]).decode()}"
+            content = [{"type": "text", "text": user}, {"type": "image_url", "image_url": {"url": data_uri}}]
+        try:
+            text = groq_client.chat([{"role": "system", "content": system}, {"role": "user", "content": content}],
+                                    vision=bool(image), json_mode=True)
+            result = _parse_json_text(text, schema)
+        except Exception as exc:
+            _last_ai_errors[:] = [f"groq: {type(exc).__name__}: {_scrub(str(exc))[:200]}"]
+            raise
+        _last_ai_errors.clear()
+        return result
+    contents = user
+    if image:
+        from google.genai import types
+
+        contents = [types.Part.from_bytes(data=image[0], mime_type=image[1]), user]
+    return _generate_structured(contents, system, schema)
 
 
 # ------------------------------------------------------------------ offline helpers
@@ -311,7 +358,7 @@ def parse_expense_prompt(text: str, members: list[str], sender: str | None = Non
     if not get_settings().ai_enabled:
         return _finalize(_offline_parse(text, members, sender))
     try:
-        parsed = _finalize(_generate_structured(
+        parsed = _finalize(_ai_structured(
             text,
             EXPENSE_PROMPT.format(members=", ".join(members) or "(none)", sender=sender,
                                   categories=", ".join(CATEGORIES)),
@@ -322,7 +369,7 @@ def parse_expense_prompt(text: str, members: list[str], sender: str | None = Non
     except ExpenseParseError:
         raise
     except Exception as exc:
-        log.warning("Gemini parse failed, using offline parser: %s", _scrub(str(exc)))
+        log.warning("AI parse failed, using offline parser: %s", _scrub(str(exc)))
         try:
             parsed = _finalize(_offline_parse(text, members, sender))
         except ExpenseParseError:
@@ -332,27 +379,27 @@ def parse_expense_prompt(text: str, members: list[str], sender: str | None = Non
 
 
 def parse_receipt(image: bytes, mime_type: str, members: list[str], sender: str, note: str = "") -> ParsedReceipt:
-    """Read a receipt photo with Gemini Vision and propose an itemized split."""
+    """Read a receipt photo with a vision model and propose an itemized split."""
     if not get_settings().ai_enabled:
-        raise ExpenseParseError("Receipt scanning needs a Gemini API key (set GEMINI_API_KEY in backend/.env).")
-    from google.genai import types
-
+        raise ExpenseParseError("Receipt scanning needs an AI key (set GROQ_API_KEY or GEMINI_API_KEY).")
     try:
-        parsed = _generate_structured(
-            [types.Part.from_bytes(data=image, mime_type=mime_type), "Parse this receipt."],
+        parsed = _ai_structured(
+            "Parse this receipt.",
             RECEIPT_PROMPT.format(members=", ".join(members), sender=sender, note=note.replace('"', "'"),
                                   categories=", ".join(CATEGORIES)),
             ParsedReceipt,
+            image=(image, mime_type),
         )
     except ExpenseParseError:
         raise
     except Exception as exc:
-        log.exception("Gemini receipt parsing failed")
+        log.warning("AI receipt parsing failed: %s", _scrub(str(exc)))
         raise ExpenseParseError(f"Couldn't read that receipt: {exc}") from exc
     if not parsed.participants:
         parsed.participants = list(members)
     parsed = _finalize(parsed)
-    parsed._source = ai_mode()
+    parsed._source = f"{get_settings().active_ai_provider}:" + (
+        groq_client.current_model(vision=True) if get_settings().active_ai_provider == "groq" else current_model())
     return parsed  # type: ignore[return-value]
 
 
@@ -386,11 +433,11 @@ def answer_question(question: str, ctx: dict, sender: str) -> str:
     if not get_settings().ai_enabled:
         return _offline_answer(question, ctx, sender)
     try:
-        resp = _generate(question, ASK_PROMPT.format(sender=sender, context=json.dumps(ctx, default=str)),
-                         temperature=0.3)
-        return (resp.text or "").strip() or _offline_answer(question, ctx, sender)
+        answer = _ai_text(question, ASK_PROMPT.format(sender=sender, context=json.dumps(ctx, default=str)),
+                          temperature=0.3)
+        return answer or _offline_answer(question, ctx, sender)
     except Exception as exc:
-        log.warning("Gemini ask failed, using offline answer: %s", exc)
+        log.warning("AI ask failed, using offline answer: %s", _scrub(str(exc)))
         return _offline_answer(question, ctx, sender)
 
 
@@ -406,48 +453,52 @@ def write_nudge(debtor: str, creditor: str, amount: str, group: str, tone: str) 
     if not get_settings().ai_enabled:
         return fallback
     try:
-        resp = _generate("Write the message.", NUDGE_PROMPT.format(
+        msg = _ai_text("Write the message.", NUDGE_PROMPT.format(
             debtor=debtor, creditor=creditor, amount=amount, group=group, tone=tone), temperature=0.8)
-        return (resp.text or "").strip().strip('"') or fallback
+        return msg.strip('"') or fallback
     except Exception as exc:
-        log.warning("Gemini nudge failed, using template: %s", exc)
+        log.warning("AI nudge failed, using template: %s", _scrub(str(exc)))
         return fallback
 
 
 def _scrub(msg: str) -> str:
     """Remove anything that looks like an API key from an error message."""
-    return re.sub(r"AIza[0-9A-Za-z_-]{10,}", "AIza…", msg)[:300]
+    msg = re.sub(r"AIza[0-9A-Za-z_-]{10,}", "AIza…", msg)
+    return re.sub(r"gsk_[0-9A-Za-z]{10,}", "gsk_…", msg)[:300]
 
 
 def check_ai() -> dict:
-    """Live diagnostic: a plain call and a structured-output call. Never returns the key."""
+    """Live diagnostic: a plain call and a structured-output call. Never returns a key."""
     import itertools
 
     s = get_settings()
-    out: dict = {"mode": ai_mode(), "configured_model": s.gemini_model, "key_set": bool(s.gemini_api_key)}
-    if not s.ai_enabled:
-        out.update(ok=False, error="AI disabled (no GEMINI_API_KEY, or AI_OFFLINE_MODE=true)")
+    provider = s.active_ai_provider
+    out: dict = {"mode": ai_mode(), "provider": provider or "offline",
+                 "groq_key_set": bool(s.groq_api_key), "gemini_key_set": bool(s.gemini_api_key)}
+    if not provider:
+        out.update(ok=False, error="AI disabled (no GROQ_API_KEY / GEMINI_API_KEY, or AI_OFFLINE_MODE=true)")
         return out
     try:
-        resp = _generate("Reply with the single word: pong", "You are a health check.")
-        out["plain_call"] = f"ok: {(resp.text or '').strip()[:20]}"
+        out["plain_call"] = f"ok: {_ai_text('Reply with the single word: pong', 'You are a health check.')[:20]}"
     except Exception as exc:
         out["plain_call"] = f"{type(exc).__name__}: {_scrub(str(exc))}"
     try:
-        p = _generate_structured("I paid $90 for dinner with Alex and Sam; Alex owes 50, I owe 25, Sam owes 15",
-                                 EXPENSE_PROMPT.format(members="You, Alex, Sam", sender="You",
-                                                       categories=", ".join(CATEGORIES)), ParsedExpense)
-        out["structured_call"] = f"ok ({_schema_mode}): {p.split_type} {[(c.name, c.amount) for c in p.custom_shares]}"
+        p = _ai_structured("I paid $90 for dinner with Alex and Sam; Alex owes 50, I owe 25, Sam owes 15",
+                           EXPENSE_PROMPT.format(members="You, Alex, Sam", sender="You",
+                                                 categories=", ".join(CATEGORIES)), ParsedExpense)
+        out["structured_call"] = f"ok: {p.split_type} {[(c.name, c.amount) for c in p.custom_shares]}"
     except Exception as exc:
         out["structured_call"] = "failed"
         out["structured_errors"] = list(_last_ai_errors) or [f"{type(exc).__name__}: {_scrub(str(exc))}"]
-    out["model_in_use"] = current_model()
     out["mode"] = ai_mode()
     out["ok"] = out["plain_call"].startswith("ok") and out["structured_call"].startswith("ok")
-    if not out["plain_call"].startswith("ok"):
+    if not out["ok"]:
         try:
-            names = [m.name for m in itertools.islice(_client().models.list(), 200)]
-            out["available_flash_models"] = sorted(n.removeprefix("models/") for n in names if "flash" in n)[:15]
+            if provider == "groq":
+                out["available_models"] = (groq_client.list_models() or [])[:25]
+            else:
+                names = [m.name for m in itertools.islice(_client().models.list(), 200)]
+                out["available_models"] = sorted(n.removeprefix("models/") for n in names if "flash" in n)[:15]
         except Exception as exc:
             out["models_error"] = f"{type(exc).__name__}: {_scrub(str(exc))}"
     return out

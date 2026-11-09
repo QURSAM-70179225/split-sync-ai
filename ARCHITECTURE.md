@@ -31,7 +31,8 @@
 | `database.py` | Engine, session, SQLite pragmas (FKs, WAL), additive migrations on startup | config |
 | `models.py` | ORM: User, Group, GroupMember, Expense, ExpenseSplit, Settlement | database |
 | `schemas.py` | The API contract plus the **AI output schemas** (`ParsedExpense`, `ParsedReceipt`) | — |
-| `ai_parser.py` | All prompts and Gemini calls. Every feature except receipts has a deterministic fallback | config, schemas |
+| `ai_parser.py` | All prompts, provider switch (Groq or Gemini), schema validation. Every feature except receipts has a deterministic fallback | config, schemas, groq_client |
+| `groq_client.py` | Groq chat completions over HTTPS: model discovery, retired-model rollover, JSON mode, timeouts | config |
 | `ledger.py` | Pure money logic: name resolution, cent-exact splits, balances, simplification, marking splits paid | models |
 | `insights.py` | Aggregations, highlights, compact JSON context for the copilot | ledger |
 | `events.py` | Thread-safe pub/sub broker feeding SSE streams | — |

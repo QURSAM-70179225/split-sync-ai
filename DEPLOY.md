@@ -24,14 +24,15 @@ The whole app (React frontend + FastAPI backend) ships as **one Docker image on 
 
 | Key | Value |
 |---|---|
-| `GEMINI_API_KEY` | From https://aistudio.google.com/app/apikey |
+| `GROQ_API_KEY` | From https://console.groq.com/keys (recommended) |
+| `GEMINI_API_KEY` | Optional alternative: https://aistudio.google.com/app/apikey |
 | `PAYPAL_CLIENT_ID` | developer.paypal.com → Apps & Credentials → **Sandbox** → your app |
 | `PAYPAL_CLIENT_SECRET` | Same page, click **Show** |
 
 **5. Click Apply.** The first build takes about 5 minutes. You get a URL like `https://splitsync-ai.onrender.com`.
 
 **6. Open the URL.** You should see the guided tour and the 🌴 *Bali Trip* demo group (seeded automatically). Check the bottom-left of the sidebar:
-- **AI parser** says **Gemini · …** (or *Offline fallback* if you left the key blank)
+- **AI parser** says **Groq · …** or **Gemini · …** (or *Offline fallback* if you left the keys blank). Open `/api/health/ai` for a live AI check
 - **PayPal** says **Sandbox** (or *Demo checkout*)
 
 **7. Paste the URL** into your hackathon submission and into the README's "Live demo" line.
@@ -79,7 +80,11 @@ Open http://localhost:8080. nginx serves the frontend and proxies `/api`, with S
 
 | Variable | Default | Notes |
 |---|---|---|
-| `GEMINI_API_KEY` | *(empty)* | Empty means the offline parser. Receipt scanning needs a key |
+| `GROQ_API_KEY` | *(empty)* | Groq key. Used first when set |
+| `GROQ_MODEL` / `GROQ_VISION_MODEL` | *(empty = auto)* | Override the auto-picked text / vision model |
+| `GEMINI_API_KEY` | *(empty)* | Alternative provider. With no AI key the offline parser is used, and receipt scanning is disabled |
+| `AI_PROVIDER` | `auto` | `auto`, `groq` or `gemini` |
+| `AI_TIMEOUT_S` | `25` | Hard limit per AI request |
 | `GEMINI_MODEL` | `gemini-3.8-flash` | Any Gemini model that supports structured output |
 | `AI_OFFLINE_MODE` | `false` | Forces offline mode even when a key is set |
 | `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` | *(empty)* | Sandbox app credentials |
@@ -95,7 +100,7 @@ Open http://localhost:8080. nginx serves the frontend and proxies `/api`, with S
 | Symptom | Fix |
 |---|---|
 | Render build fails at `npm ci` | Make sure `frontend/package-lock.json` is committed |
-| Sidebar shows *Offline fallback* even though a key is set | The key is still the placeholder, or there's a typo. Re-enter it under Environment |
+| Sidebar shows *Offline fallback*, or the chat says the AI was unavailable | Open `/api/health/ai`. It shows the exact AI error. Re-enter the key under Environment if it says the key is invalid |
 | PayPal says "authentication failed" | Use **Sandbox** credentials, not Live |
 | After paying on PayPal you land on localhost | Set `FRONTEND_URL` to your public URL (Docker hosts other than Render) |
 | The first load takes ~50 s | Free-tier cold start. Open the URL ahead of time |

@@ -297,7 +297,7 @@ export default function App() {
             </div>
             <div className="mt-10 grid max-w-2xl grid-cols-1 gap-3 text-left sm:grid-cols-3">
               {[
-                ["🗣️", "Conversational", "Natural language, voice, and receipt photos — Gemini parses them all."],
+                ["🗣️", "Conversational", "Natural language, voice, and receipt photos — the AI parses them all."],
                 ["⚡", "Smart settlement", "Debts simplified to the minimum number of payments."],
                 ["💳", "One-tap PayPal", "Settle each debt via PayPal checkout, synced live for everyone."],
               ].map(([icon, title, body]) => (
