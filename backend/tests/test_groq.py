@@ -101,3 +101,54 @@ def test_groq_bad_json_falls_back_offline(groq):
 
 def test_groq_key_is_scrubbed():
     assert "gsk_abcdefghijklmnop" not in ai_parser._scrub("bad key gsk_abcdefghijklmnop1234 rejected")
+
+
+RECEIPT = {**GOOD, "merchant": "Cafe", "items": [{"name": "Burger", "price": 60, "assigned_to": ["Alex"]}],
+           "tax_and_tip": 0}
+
+
+def test_receipt_falls_back_to_gemini_when_groq_has_no_vision(groq, monkeypatch):
+    calls, state = groq
+    state["models"] = ["openai/gpt-oss-120b", "whisper-large-v3"]  # no vision model on this key
+    monkeypatch.setattr(get_settings(), "gemini_api_key", "AIza-test")
+    seen = {}
+
+    def fake_gemini(contents, system, schema, temperature=0.0):
+        seen["contents"] = contents
+        return ai_parser.ParsedReceipt.model_validate(RECEIPT)
+
+    monkeypatch.setattr(ai_parser, "_generate_structured", fake_gemini)
+    r = ai_parser.parse_receipt(b"\x89PNG", "image/png", ["You", "Alex"], "You", "Alex had the burger")
+    assert r._source.startswith("gemini:") and calls == [] and len(seen["contents"]) == 2
+
+
+def test_receipt_without_any_vision_model_is_a_clear_422(groq, monkeypatch):
+    _, state = groq
+    state["models"] = ["openai/gpt-oss-120b"]
+    monkeypatch.setattr(get_settings(), "gemini_api_key", "")
+    with pytest.raises(ai_parser.ExpenseParseError, match="GEMINI_API_KEY"):
+        ai_parser.parse_receipt(b"\x89PNG", "image/png", ["You", "Alex"], "You", "")
+
+
+def test_gemini_overload_rolls_to_next_model(monkeypatch):
+    s = get_settings()
+    monkeypatch.setattr(s, "groq_api_key", "")
+    monkeypatch.setattr(s, "gemini_api_key", "AIza-test")
+    monkeypatch.setattr(s, "ai_offline_mode", False)
+    monkeypatch.setattr(s, "gemini_model", "gemini-3.8-flash")
+    monkeypatch.setattr(ai_parser, "_working_model", None)
+    tried = []
+
+    class Models:
+        def generate_content(self, model, contents, config):
+            tried.append(model)
+            if model == "gemini-3.8-flash":
+                raise RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand.")
+            return "ok"
+
+    class Client:
+        models = Models()
+
+    monkeypatch.setattr(ai_parser, "_client", lambda: Client())
+    assert ai_parser._generate("hi", "sys") == "ok"
+    assert tried == ["gemini-3.8-flash", "gemini-3.5-flash"]

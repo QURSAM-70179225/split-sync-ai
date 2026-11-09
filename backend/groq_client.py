@@ -81,6 +81,14 @@ def _candidates(vision: bool) -> list[str]:
     return list(dict.fromkeys(out))
 
 
+def has_vision_model() -> bool:
+    """True if this key can use at least one image-capable model."""
+    available = list_models()
+    if available is None:
+        return True  # can't tell; let the request decide
+    return any(m in available for m in _candidates(vision=True))
+
+
 def current_model(vision: bool = False) -> str:
     kind = "vision" if vision else "text"
     if _working[kind]:

@@ -28,7 +28,9 @@ class ExpenseParseError(ValueError):
 
 
 # Tried in order after GEMINI_MODEL when Google reports a model as retired / not found.
-FALLBACK_MODELS = ("gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-flash-latest")
+# Lite models are included because the main ones can be overloaded (503) on the free tier.
+FALLBACK_MODELS = ("gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.5-flash-lite",
+                   "gemini-flash-latest")
 _working_model: str | None = None
 
 
@@ -46,6 +48,15 @@ def ai_mode() -> str:
 def _is_model_missing(exc: Exception) -> bool:
     msg = str(exc)
     return getattr(exc, "code", None) == 404 or "NOT_FOUND" in msg or "no longer available" in msg
+
+
+def _is_overloaded(exc: Exception) -> bool:
+    msg = str(exc)
+    return getattr(exc, "code", None) in (503, 504) or "UNAVAILABLE" in msg or "DEADLINE_EXCEEDED" in msg
+
+
+def _gemini_model() -> str:
+    return _working_model or get_settings().gemini_model
 
 
 # ------------------------------------------------------------------ prompts
@@ -135,8 +146,8 @@ def _generate(contents, system: str, schema=None, temperature: float = 0.0, sche
         try:
             resp = client.models.generate_content(model=model, contents=contents, config=cfg)
         except Exception as exc:
-            if _is_model_missing(exc):
-                log.warning("Gemini model %s unavailable, trying the next one", model)
+            if _is_model_missing(exc) or _is_overloaded(exc):
+                log.warning("Gemini model %s unavailable (%s), trying the next one", model, type(exc).__name__)
                 last_exc = exc
                 continue
             raise
@@ -216,29 +227,57 @@ def _ai_text(user: str, system: str, temperature: float = 0.0) -> str:
 
 
 def _ai_structured(user: str, system: str, schema, image: tuple[bytes, str] | None = None):
-    """Schema-validated JSON from the active provider (optionally with an image)."""
-    if get_settings().active_ai_provider == "groq":
-        system = (f"{system}\n\nReturn ONLY a JSON object that matches this JSON Schema "
-                  f"(no prose, no code fences):\n{json.dumps(schema.model_json_schema())}")
-        content: str | list = user
-        if image:
-            data_uri = f"data:{image[1]};base64,{base64.b64encode(image[0]).decode()}"
-            content = [{"type": "text", "text": user}, {"type": "image_url", "image_url": {"url": data_uri}}]
+    """Schema-validated JSON from the active provider (optionally with an image).
+
+    Receipt photos need a vision model: if the Groq key has none (or the Groq call fails) and a
+    Gemini key is set, the image goes to Gemini instead.
+    """
+    s = get_settings()
+    if s.active_ai_provider == "groq" and image:
+        if not groq_client.has_vision_model():
+            if not s.gemini_api_key:
+                raise ExpenseParseError("Your Groq key has no image-capable model. Add GEMINI_API_KEY to scan receipts.")
+            return _gemini_structured(user, system, schema, image)
         try:
-            text = groq_client.chat([{"role": "system", "content": system}, {"role": "user", "content": content}],
-                                    vision=bool(image), json_mode=True)
-            result = _parse_json_text(text, schema)
+            return _groq_structured(user, system, schema, image)
         except Exception as exc:
-            _last_ai_errors[:] = [f"groq: {type(exc).__name__}: {_scrub(str(exc))[:200]}"]
-            raise
-        _last_ai_errors.clear()
-        return result
+            if not s.gemini_api_key:
+                raise
+            log.warning("Groq vision failed (%s); trying Gemini", type(exc).__name__)
+            return _gemini_structured(user, system, schema, image)
+    if s.active_ai_provider == "groq":
+        return _groq_structured(user, system, schema, image)
+    return _gemini_structured(user, system, schema, image)
+
+
+def _gemini_structured(user: str, system: str, schema, image: tuple[bytes, str] | None = None):
     contents = user
     if image:
         from google.genai import types
 
         contents = [types.Part.from_bytes(data=image[0], mime_type=image[1]), user]
-    return _generate_structured(contents, system, schema)
+    result = _generate_structured(contents, system, schema)
+    result._source = f"gemini:{_gemini_model()}"
+    return result
+
+
+def _groq_structured(user: str, system: str, schema, image: tuple[bytes, str] | None = None):
+    system = (f"{system}\n\nReturn ONLY a JSON object that matches this JSON Schema "
+              f"(no prose, no code fences):\n{json.dumps(schema.model_json_schema())}")
+    content: str | list = user
+    if image:
+        data_uri = f"data:{image[1]};base64,{base64.b64encode(image[0]).decode()}"
+        content = [{"type": "text", "text": user}, {"type": "image_url", "image_url": {"url": data_uri}}]
+    try:
+        text = groq_client.chat([{"role": "system", "content": system}, {"role": "user", "content": content}],
+                                vision=bool(image), json_mode=True)
+        result = _parse_json_text(text, schema)
+    except Exception as exc:
+        _last_ai_errors[:] = [f"groq: {type(exc).__name__}: {_scrub(str(exc))[:200]}"]
+        raise
+    _last_ai_errors.clear()
+    result._source = f"groq:{groq_client.current_model(vision=bool(image))}"
+    return result
 
 
 # ------------------------------------------------------------------ offline helpers
@@ -365,7 +404,6 @@ def parse_expense_prompt(text: str, members: list[str], sender: str | None = Non
                                   categories=", ".join(CATEGORIES)),
             ParsedExpense,
         ))
-        parsed._source = ai_mode()
         return parsed
     except ExpenseParseError:
         raise
@@ -398,10 +436,7 @@ def parse_receipt(image: bytes, mime_type: str, members: list[str], sender: str,
         raise ExpenseParseError(f"Couldn't read that receipt: {exc}") from exc
     if not parsed.participants:
         parsed.participants = list(members)
-    parsed = _finalize(parsed)
-    parsed._source = f"{get_settings().active_ai_provider}:" + (
-        groq_client.current_model(vision=True) if get_settings().active_ai_provider == "groq" else current_model())
-    return parsed  # type: ignore[return-value]
+    return _finalize(parsed)  # type: ignore[return-value]
 
 
 def _offline_answer(question: str, ctx: dict, sender: str) -> str:
@@ -493,6 +528,10 @@ def check_ai() -> dict:
         out["structured_errors"] = list(_last_ai_errors) or [f"{type(exc).__name__}: {_scrub(str(exc))}"]
     out["mode"] = ai_mode()
     out["ok"] = out["plain_call"].startswith("ok") and out["structured_call"].startswith("ok")
+    if provider == "groq":
+        out["groq_models"] = (groq_client.list_models() or [])[:40]
+        out["receipt_vision"] = (f"groq:{groq_client.current_model(vision=True)}" if groq_client.has_vision_model()
+                                 else "gemini (fallback)" if s.gemini_api_key else "unavailable")
     if not out["ok"]:
         try:
             if provider == "groq":
