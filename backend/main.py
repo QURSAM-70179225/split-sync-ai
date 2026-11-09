@@ -20,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 import paypal_client
+from agent import build_plan, understand
 from ai_parser import (
     ExpenseParseError,
     ai_mode,
@@ -46,6 +47,11 @@ from ledger import (
 )
 from models import Expense, ExpenseSplit, Group, GroupMember, Settlement, User
 from schemas import (
+    AgentExecuteOut,
+    AgentExecuteRequest,
+    AgentNudgeOut,
+    AgentPlanOut,
+    AgentRequest,
     AskRequest,
     AskResponse,
     BalancesOut,
@@ -66,6 +72,7 @@ from schemas import (
     SettlementPayResponse,
     UserOut,
 )
+from settlements import start_settlement
 
 settings = get_settings()
 logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -91,7 +98,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="SplitSync AI",
-    version="2.1.7",
+    version="2.2.0",
     description="Conversational group expenses with Gemini AI and autonomous PayPal settlement.",
     lifespan=lifespan,
 )
@@ -403,6 +410,49 @@ def nudge(group_id: int, payload: NudgeRequest, db: Session = Depends(get_db)):
     return NudgeResponse(message=msg, ai_mode=ai_mode())
 
 
+# ---------------------------------------------------------------- Settle-Up Agent
+@app.post("/api/groups/{group_id}/agent/plan", response_model=AgentPlanOut)
+def agent_plan(group_id: int, payload: AgentRequest, db: Session = Depends(get_db)):
+    """AI reads the command; the plan's amounts come from the ledger. Nothing is executed here."""
+    group = _group_or_404(db, group_id)
+    me = _sender(group, payload.sender_id)
+    intent, mode = understand(payload.text, [u.name for u in group.members], me.name)
+    return build_plan(db, group, me, intent, mode)
+
+
+@app.post("/api/groups/{group_id}/agent/execute", response_model=AgentExecuteOut)
+def agent_execute(group_id: int, payload: AgentExecuteRequest, db: Session = Depends(get_db)):
+    """Run a plan the user confirmed: create PayPal orders for their debts and write reminders.
+
+    Guardrails: the agent only pays debts owed BY the sender, only reminds people who owe the
+    sender, and every amount is re-checked against the live ledger (start_settlement).
+    """
+    group = _group_or_404(db, group_id)
+    me = _sender(group, payload.sender_id)
+    ids = {u.id: u for u in group.members}
+    for a in payload.actions:
+        if a.from_user_id not in ids or a.to_user_id not in ids:
+            raise HTTPException(422, "Every action must be between members of this group")
+        if a.kind == "pay" and a.from_user_id != me.id:
+            raise HTTPException(403, "The agent can only pay debts you owe")
+        if a.kind == "nudge" and a.to_user_id != me.id:
+            raise HTTPException(403, "The agent can only send reminders for money owed to you")
+
+    payments, nudges = [], []
+    for a in payload.actions:
+        if a.kind == "pay":
+            st, url, mode = start_settlement(db, group, ids[a.from_user_id], ids[a.to_user_id], a.amount, a.currency)
+            payments.append(SettlementPayResponse(settlement=st, approval_url=url, mode=mode))
+        else:
+            msg = write_nudge(ids[a.from_user_id].name, me.name, _money(a.amount, a.currency.upper()),
+                              group.name, payload.tone)
+            nudges.append(AgentNudgeOut(to_user=UserOut.model_validate(ids[a.from_user_id]), amount=a.amount,
+                                        currency=a.currency.upper(), message=msg))
+    if payments:
+        broker.publish(group_id, "agent.started", {"by": me.name, "payments": len(payments)})
+    return AgentExecuteOut(payments=payments, nudges=nudges, mode=settings.effective_paypal_mode)
+
+
 # ---------------------------------------------------------------- live sync (SSE)
 @app.get("/api/groups/{group_id}/events")
 async def group_events(group_id: int, request: Request):
@@ -433,48 +483,10 @@ def pay_settlement(payload: SettlementPayRequest, db: Session = Depends(get_db))
     ids = {u.id: u for u in group.members}
     if payload.from_user_id not in ids or payload.to_user_id not in ids:
         raise HTTPException(422, "Both users must be members of the group")
-    if payload.from_user_id == payload.to_user_id:
-        raise HTTPException(422, "Cannot settle a debt with yourself")
-
-    currency = payload.currency.upper()
-    outstanding = next(
-        (d.amount for d in compute_balances(db, group).debts
-         if d.from_user.id == payload.from_user_id and d.to_user.id == payload.to_user_id and d.currency == currency),
-        0.0,
+    settlement, approval_url, mode = start_settlement(
+        db, group, ids[payload.from_user_id], ids[payload.to_user_id], payload.amount, payload.currency
     )
-    if outstanding <= 0:
-        raise HTTPException(422, "There is no outstanding debt between these members")
-    if payload.amount - outstanding > 0.01:
-        raise HTTPException(422, f"Amount exceeds outstanding debt ({outstanding:.2f} {currency})")
-
-    debtor, creditor = ids[payload.from_user_id], ids[payload.to_user_id]
-    settlement = Settlement(group_id=group.id, from_user_id=debtor.id, to_user_id=creditor.id,
-                            amount=round(payload.amount, 2), currency=currency)
-    db.add(settlement)
-    db.flush()
-
-    base = settings.public_url
-    mode = settings.effective_paypal_mode
-    if mode == "demo":
-        order = {"order_id": f"DEMO-{uuid.uuid4().hex[:16].upper()}"}
-        order["approval_url"] = f"{base}/?paypal=demo&settlement_id={settlement.id}&token={order['order_id']}"
-    else:
-        try:
-            order = paypal_client.create_paypal_order(
-                settlement.amount, currency, f"SplitSync: {debtor.name} -> {creditor.name} ({group.name})",
-                reference_id=f"settlement-{settlement.id}",
-                payee_email=creditor.email if settings.paypal_use_payee_email else None,
-                return_url=f"{base}/?paypal=success&settlement_id={settlement.id}",
-                cancel_url=f"{base}/?paypal=cancel&settlement_id={settlement.id}",
-            )
-        except paypal_client.PayPalError:
-            db.rollback()
-            raise
-
-    settlement.paypal_order_id = order["order_id"]
-    db.commit()
-    db.refresh(settlement)
-    return SettlementPayResponse(settlement=settlement, approval_url=order["approval_url"], mode=mode)
+    return SettlementPayResponse(settlement=settlement, approval_url=approval_url, mode=mode)
 
 
 @app.post("/api/settlements/{settlement_id}/capture", response_model=SettlementOut)

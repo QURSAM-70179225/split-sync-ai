@@ -9,6 +9,7 @@ SplitSync AI: conversational group expenses (FastAPI + Gemini) with PayPal settl
 ```
 backend/   main.py (routes only) · ledger.py (money math) · ai_parser.py (all LLM calls) · groq_client.py
            insights.py · events.py (SSE broker) · paypal_client.py · models.py · schemas.py
+           agent.py (Settle-Up Agent) · settlements.py (PayPal order service)
            config.py · database.py (+ additive migrations) · demo_data.py · tests/
 frontend/  src/App.jsx (state + orchestration) · components/ · hooks/ · services/api.js
 deploy     Dockerfile (single image) · render.yaml · DEPLOY.md · docker-compose.yml
@@ -46,6 +47,11 @@ docs       README.md · SUBMISSION.md · ARCHITECTURE.md · SCHEMA.md · DESIGN.
 - React: function components and hooks, no class components, no new state libraries. Keep fetching in `App.jsx` or self-contained panels.
 - Tailwind v4 utilities only, no inline style except for data-driven widths and heights.
 - Commits: imperative mood ("Add receipt scanning"), one logical change per commit.
+
+## Agent rules
+- The agent may only plan from `compute_balances`; amounts never come from the model.
+- It only pays debts owed by the sender and only reminds the sender's debtors; `/agent/execute` enforces this server-side.
+- Nothing executes without an explicit user confirmation in the UI.
 
 ## Don'ts
 - Don't add an endpoint that changes money without a test.

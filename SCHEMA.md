@@ -123,7 +123,9 @@ The base path is `/api`. Interactive docs are at `http://localhost:8000/docs`.
 | GET | `/groups/{id}/insights` | — | `InsightsOut` |
 | POST | `/groups/{id}/ask` | `{question, sender_id?}` | `{answer, ai_mode}` |
 | POST | `/groups/{id}/nudge` | `{from_user_id, to_user_id, amount, currency?, tone}` | `{message, ai_mode}` |
-| GET | `/groups/{id}/events` | — | SSE: `connected`, `expense.created`, `expense.deleted`, `member.added`, `settlement.completed`, `group.deleted` |
+| POST | `/groups/{id}/agent/plan` | `{text, sender_id}` | `{intent, summary, actions:[{kind: pay\|nudge, from_user, to_user, amount, currency}], acting_for, ai_mode}` |
+| POST | `/groups/{id}/agent/execute` | `{sender_id, actions:[{kind, from_user_id, to_user_id, amount, currency}], tone?}` | `{payments:[{settlement, approval_url, mode}], nudges:[{to_user, amount, currency, message}], mode}` · 403 if paying someone else's debt or reminding on someone else's behalf · 422 if over the outstanding amount |
+| GET | `/groups/{id}/events` | — | SSE: `connected`, `expense.created`, `expense.deleted`, `member.added`, `settlement.completed`, `agent.started`, `group.deleted` |
 | POST | `/settlements/pay` | `{group_id, from_user_id, to_user_id, amount, currency?}` | `{settlement, approval_url, mode}` (201) |
 | POST | `/settlements/{id}/capture` | `{order_id?}` | `SettlementOut` |
 | POST | `/settlements/{id}/cancel` | — | `SettlementOut` |

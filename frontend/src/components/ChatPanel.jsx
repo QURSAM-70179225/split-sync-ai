@@ -9,6 +9,7 @@ const EXAMPLES = [
   "Alex covered the $24 Uber, split with me",
   "Sarah paid 90 for groceries for everyone",
   "I paid $100 for concert tickets: Alex owes 60, I owe 40",
+  "Settle everything for me",
 ];
 
 function ExpenseCard({ result }) {
@@ -61,7 +62,10 @@ function ExpenseCard({ result }) {
   );
 }
 
-export default function ChatPanel({ group, me, parseExpense, scanReceipt }) {
+// Commands for the Settle-Up Agent rather than new expenses ("settle everything", "pay back Sarah", …)
+const AGENT_COMMAND = /^\s*(settle\b|pay (back|off|all|everyone|my|everything)\b|remind\b|nudge\b|collect\b|chase\b|square up\b)/i;
+
+export default function ChatPanel({ group, me, parseExpense, scanReceipt, onAgentCommand }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -93,6 +97,11 @@ export default function ChatPanel({ group, me, parseExpense, scanReceipt }) {
     const value = (override ?? text).trim();
     if (!value || busy || !group) return;
     if (!override) setText("");
+    if (onAgentCommand && AGENT_COMMAND.test(value)) {
+      setMessages((m) => [...m, { role: "user", text: value, source }, { role: "agent" }]);
+      onAgentCommand(value);
+      return;
+    }
     run({ role: "user", text: value, source }, () => parseExpense(value, source));
   }
 
@@ -151,6 +160,12 @@ export default function ChatPanel({ group, me, parseExpense, scanReceipt }) {
                   )}
                   {m.source === "receipt" && !m.text && <p className="text-xs text-indigo-200">Scanning receipt…</p>}
                 </div>
+              </div>
+            );
+          if (m.role === "agent")
+            return (
+              <div key={i} className="animate-fade-up max-w-[85%] rounded-2xl rounded-bl-md border border-indigo-500/30 bg-indigo-500/10 px-4 py-2.5 text-sm text-indigo-100">
+                🤖 That sounds like a job for the <b>Settle-Up Agent</b>. I've drafted a plan for you to review.
               </div>
             );
           if (m.role === "error")

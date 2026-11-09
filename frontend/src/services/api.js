@@ -60,6 +60,11 @@ export const api = {
   nudge: (groupId, payload) => request(`/api/groups/${groupId}/nudge`, { method: "POST", body: payload }),
   eventsUrl: (groupId) => `${BASE}/api/groups/${groupId}/events`,
 
+  agentPlan: (groupId, text, senderId) =>
+    request(`/api/groups/${groupId}/agent/plan`, { method: "POST", body: { text, sender_id: senderId } }),
+  agentExecute: (groupId, senderId, actions, tone = "friendly") =>
+    request(`/api/groups/${groupId}/agent/execute`, { method: "POST", body: { sender_id: senderId, actions, tone } }),
+
   listSettlements: (groupId) => request(`/api/groups/${groupId}/settlements`),
   paySettlement: (payload) => request("/api/settlements/pay", { method: "POST", body: payload }),
   captureSettlement: (id, orderId) =>

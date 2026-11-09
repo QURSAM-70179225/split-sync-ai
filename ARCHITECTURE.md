@@ -38,6 +38,8 @@
 | `events.py` | Thread-safe pub/sub broker feeding SSE streams | — |
 | `paypal_client.py` | Token cache, create order, capture order (handles "already captured") | config |
 | `demo_data.py` | Seeds the "Bali Trip" demo | ledger |
+| `agent.py` | Settle-Up Agent: AI intent → deterministic payment/reminder plan | ai_parser, ledger |
+| `settlements.py` | Shared "validate debt + create PayPal/demo order" service | ledger, paypal_client |
 
 ## 3. Key flows
 
@@ -77,7 +79,23 @@ User text ─► POST /api/groups/{id}/expenses/parse {text, sender_id, source}
             └─ broker.publish("settlement.completed")
 ```
 
-### 3.5 Live sync
+### 3.5 Settle-Up Agent (agentic commerce)
+```
+"Settle everything for me" ─► POST /agent/plan
+   ├─ agent.understand: AI → AgentIntent {intent, people}   (keyword fallback offline)
+   ├─ agent.build_plan: actions from ledger.compute_balances (amounts never from the model)
+   │     pay   = debts FROM the sender (optionally only named people)
+   │     nudge = debts TO the sender
+   └─ returns summary + actions  ── user reviews, unticks, confirms
+POST /agent/execute
+   ├─ guards: pay only own debts (403), remind only own debtors (403)
+   ├─ settlements.start_settlement per payment: re-checks outstanding (422), creates PayPal order
+   ├─ write_nudge per reminder
+   └─ broker.publish("agent.started")
+Frontend queue (localStorage) survives the PayPal redirect: approve → capture → next payment.
+```
+
+### 3.6 Live sync
 `GET /api/groups/{id}/events` is an SSE stream. It sends a `connected` event (with the listener count), then domain events, with `: keep-alive` every 15 s. Route handlers run in a threadpool, so `Broker.publish` uses `loop.call_soon_threadsafe`. Each subscriber queue is bounded at 100 and drops the oldest event if full. The client uses `EventSource`, which reconnects automatically, and refetches when an event arrives. Events triggered by your own actions don't show a toast.
 
 ## 4. Design decisions

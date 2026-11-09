@@ -241,3 +241,52 @@ class SettlementPayResponse(BaseModel):
 
 class CaptureRequest(BaseModel):
     order_id: str | None = None
+
+
+# ====================================================== Settle-Up Agent
+class AgentRequest(BaseModel):
+    text: str = Field(min_length=2, max_length=500)
+    sender_id: int
+
+
+class AgentAction(BaseModel):
+    kind: Literal["pay", "nudge"]
+    from_user: UserOut  # the person who owes
+    to_user: UserOut    # the person who is owed
+    amount: float
+    currency: str = "USD"
+
+
+class AgentPlanOut(BaseModel):
+    intent: str
+    summary: str
+    actions: list[AgentAction]
+    acting_for: UserOut
+    ai_mode: str
+
+
+class AgentActionIn(BaseModel):
+    kind: Literal["pay", "nudge"]
+    from_user_id: int
+    to_user_id: int
+    amount: float = Field(gt=0)
+    currency: str = "USD"
+
+
+class AgentExecuteRequest(BaseModel):
+    sender_id: int
+    actions: list[AgentActionIn] = Field(min_length=1, max_length=20)
+    tone: Literal["friendly", "funny", "formal"] = "friendly"
+
+
+class AgentNudgeOut(BaseModel):
+    to_user: UserOut
+    amount: float
+    currency: str
+    message: str
+
+
+class AgentExecuteOut(BaseModel):
+    payments: list[SettlementPayResponse]
+    nudges: list[AgentNudgeOut]
+    mode: str

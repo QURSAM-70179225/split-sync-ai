@@ -29,13 +29,13 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 
 | Criterion | What to point judges at |
 |---|---|
-| **Technological Implementation** | PayPal OAuth2 + Orders v2 create, approve and capture, with idempotent capture and overpayment guards. LLM output is schema-validated before it touches money. Model auto-discovery, timeouts, 39 tests, CI |
+| **Technological Implementation** | PayPal OAuth2 + Orders v2 create, approve and capture, with idempotent capture and overpayment guards. LLM output is schema-validated before it touches money. Model auto-discovery, timeouts, 51 tests, CI |
 | **Design** | A complete product rather than a proof of concept: guided tour, live sync, insights, mobile layout, honest demo or offline states |
 | **Potential Impact** | A real problem for a real audience (trips, housemates, clubs). The settle-up step is where money actually moves, and PayPal closes that loop |
-| **Innovation / Idea** | Talk or photograph → exact itemized split → fewest payments → PayPal → live on every phone, plus an AI copilot and nudges |
+| **Innovation / Idea** | Talk or photograph → exact itemized split → fewest payments → PayPal → live on every phone. The **Settle-Up Agent** turns "settle everything for me" into a confirmed plan of PayPal payments: agentic commerce with a human in the loop |
 | **Presentation** | Follow the 3-minute shot list below and show a **real PayPal Sandbox payment** end to end |
 
-**Prizes this fits:** Overall · *Best Use of PayPal + AI* · *Most Impactful* · *Best Demo Delivery* · *Best Use of Render*
+**Prizes this fits:** Overall · *Best Use of PayPal + AI* · **Best Use of Agentic Commerce** (Settle-Up Agent) · *Most Impactful* · *Best Demo Delivery* · *Best Use of Render*
 
 > ⚠️ **Video rule:** no third-party copyrighted music or trademarks without permission. Use no music, or royalty-free music such as the YouTube Audio Library.
 
@@ -57,9 +57,10 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 > - **Talk:** log expenses in plain English ("I paid $60 for dinner with Alex and Sarah"), by voice, or by snapping a receipt. A vision model reads the line items, and a note like "Alex had the steak" assigns items to people, with tax and tip spread proportionally.
 > - **Split:** splits are exact to the cent, expenses are auto-categorized, and a debt-simplification algorithm reduces N people's IOUs to at most N−1 payments ("3 payments instead of 6").
 > - **Settle:** each debt has a **Settle via PayPal** button. We create a PayPal order, the debtor approves in PayPal checkout, and we capture it. The ledger marks the splits paid and every member's screen updates in real time over Server-Sent Events.
+> - **Delegate:** the **Settle-Up Agent** takes commands like "settle everything for me" or "pay back Sarah". The AI works out the intent, the plan is computed from the ledger (the AI never invents amounts), and once the user confirms, the agent creates the PayPal orders, walks through approving each one, and writes reminders for anyone who owes them. It can only pay the user's own debts, and every amount is re-checked on the server.
 > - **Understand:** an AI copilot answers questions about the group's money ("How much did we spend on food?"), an insights dashboard shows where the money went, and AI-written nudges (friendly, funny or formal) chase debts politely.
 >
-> **Built for real use:** 39 automated tests, CI, Docker, one-click Render deploy, a guided onboarding tour, and graceful fallbacks so the app keeps working even if an API is down.
+> **Built for real use:** 51 automated tests, CI, Docker, one-click Render deploy, a guided onboarding tour, and graceful fallbacks so the app keeps working even if an API is down.
 
 ### How PayPal is used
 > PayPal is the settlement layer. When a member clicks **Settle via PayPal**, the backend authenticates with OAuth2 client credentials (token cached) and calls **Orders v2 `POST /v2/checkout/orders`** with `intent: CAPTURE`. It sets an `experience_context` with `return_url` and `cancel_url` that point back to the app, `user_action: PAY_NOW` and `shipping_preference: NO_SHIPPING`. The debtor approves on PayPal's checkout page. On return, the app calls **`POST /v2/checkout/orders/{id}/capture`**. Capture is idempotent (`ORDER_ALREADY_CAPTURED` counts as success) and is only accepted when the order ID matches the settlement and the amount doesn't exceed the outstanding debt. A successful capture marks the debtor's splits as paid and broadcasts a live update to the whole group. Optional `payee.email_address` routing can send each payment straight to the creditor's PayPal account.
@@ -70,6 +71,7 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 > 2. **Receipt vision.** A photo plus an optional note becomes a `ParsedReceipt`: merchant, line items, per-item assignees, tax and tip, and per-person shares.
 > 3. **Ledger copilot.** Natural-language questions are answered from a compact JSON snapshot of the ledger.
 > 4. **Nudges.** Tone-controlled payment reminders.
+> 5. **Settle-Up Agent.** Classifies a command into a strict intent schema (pay my debts / pay specific people / collect / settle all). Code turns it into a plan from the ledger, and PayPal orders are created only after the user confirms.
 >
 > Every AI result is validated server-side (cent-exact sums, positive amounts) before it touches money. Each feature also has a deterministic fallback, so the app keeps working when there's no key or the API errors.
 

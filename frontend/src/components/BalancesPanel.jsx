@@ -10,7 +10,7 @@ function PayPalMark() {
   );
 }
 
-export default function BalancesPanel({ balances, me, onSettle, onNudge }) {
+export default function BalancesPanel({ balances, me, onSettle, onNudge, onAgent }) {
   const [paying, setPaying] = useState(null);
   if (!balances) return null;
   const { debts, members, currency, naive_transfer_count: naive } = balances;
@@ -36,11 +36,22 @@ export default function BalancesPanel({ balances, me, onSettle, onNudge }) {
       title="Balances & Settlement"
       subtitle="Debts simplified to the fewest payments"
       action={
-        myNet !== null && (
-          <Badge color={myNet > 0.004 ? "green" : myNet < -0.004 ? "red" : "gray"}>
-            {myNet > 0.004 ? `You're owed ${money(myNet, currency)}` : myNet < -0.004 ? `You owe ${money(-myNet, currency)}` : "You're all square"}
-          </Badge>
-        )
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {myNet !== null && (
+            <Badge color={myNet > 0.004 ? "green" : myNet < -0.004 ? "red" : "gray"}>
+              {myNet > 0.004 ? `You're owed ${money(myNet, currency)}` : myNet < -0.004 ? `You owe ${money(-myNet, currency)}` : "You're all square"}
+            </Badge>
+          )}
+          {onAgent && (
+            <button
+              onClick={onAgent}
+              data-tour="agent"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-indigo-900/40 transition hover:brightness-110"
+            >
+              🤖 Settle-Up Agent
+            </button>
+          )}
+        </div>
       }
     >
       <div className="grid grid-cols-2 gap-2 px-5 pt-4 sm:grid-cols-3">

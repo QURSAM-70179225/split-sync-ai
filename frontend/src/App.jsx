@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BalancesPanel from "./components/BalancesPanel";
 import ChatPanel from "./components/ChatPanel";
+import AgentModal from "./components/AgentModal";
 import CreateGroupModal from "./components/CreateGroupModal";
 import DemoCheckoutModal from "./components/DemoCheckoutModal";
 import GuidedTour from "./components/GuidedTour";
@@ -19,6 +20,7 @@ const LIVE_EVENT_TEXT = {
   "expense.deleted": () => "An expense was removed",
   "settlement.completed": (e) => `${e.from} paid ${e.to} ${money(e.amount)} 🎉`,
   "member.added": (e) => `${e.name} joined the group`,
+  "agent.started": (e) => `${e.by}'s Settle-Up Agent started ${e.payments} PayPal payment${e.payments > 1 ? "s" : ""}`,
 };
 
 export default function App() {
@@ -40,6 +42,9 @@ export default function App() {
   const [demoCheckout, setDemoCheckout] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [tourOpen, setTourOpen] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const [agentText, setAgentText] = useState("");
+  const [agentRun, setAgentRun] = useState(() => storage.get("splitsync.agentRun", null));
   const handledReturn = useRef(false);
   const lastLocalAction = useRef(0);
   const pendingLocal = useRef(0); // requests from this tab still in flight
@@ -91,6 +96,16 @@ export default function App() {
 
   useEffect(() => storage.set("splitsync.identity", identity), [identity]);
   useEffect(() => storage.set("splitsync.tab", tab), [tab]);
+  useEffect(() => storage.set("splitsync.agentRun", agentRun), [agentRun]);
+
+  // ---------- Settle-Up Agent: track each queued payment across the PayPal redirect
+  const markAgentPayment = useCallback((settlementId, status) => {
+    const inRun = storage.get("splitsync.agentRun", null)?.payments?.some((p) => p.settlement.id === Number(settlementId));
+    if (!inRun) return;
+    setAgentRun((r) => r && { ...r, payments: r.payments.map((p) => (p.settlement.id === Number(settlementId) ? { ...p, status } : p)) });
+    setAgentText("");
+    setAgentOpen(true);
+  }, []);
 
   // ---------- live sync: other devices' changes appear instantly
   const live = useGroupEvents(activeId, (evt) => {
@@ -122,10 +137,11 @@ export default function App() {
     async (sid, orderId) => {
       const st = await local(() => api.captureSettlement(sid, orderId));
       toast(`Payment of ${money(st.amount, st.currency)} from ${st.from_user.name} to ${st.to_user.name} completed! 🎉`, "success");
+      markAgentPayment(st.id, "paid");
       setActiveId(st.group_id);
       await loadGroupData(st.group_id);
     },
-    [toast, loadGroupData]
+    [toast, loadGroupData, markAgentPayment]
   );
 
   useEffect(() => {
@@ -139,12 +155,13 @@ export default function App() {
 
     if (status === "cancel") {
       api.cancelSettlement(sid).catch(() => {});
+      markAgentPayment(sid, "cancelled");
       toast("PayPal checkout was cancelled — nothing was charged.", "info");
       return;
     }
     toast("Confirming your PayPal payment…", "info");
     capture(sid, params.get("token")).catch((e) => toast(`Payment capture failed: ${e.message}`, "error"));
-  }, [toast, capture]);
+  }, [toast, capture, markAgentPayment]);
 
   // ---------- actions
   async function createGroup(name, members) {
@@ -321,7 +338,16 @@ export default function App() {
         ) : (
           <div className="grid flex-1 grid-cols-1 gap-5 overflow-y-auto p-4 sm:p-6 xl:grid-cols-12">
             <div className="h-[36rem] xl:sticky xl:top-0 xl:col-span-5 xl:h-[calc(100vh-8rem)]">
-              <ChatPanel group={group} me={me} parseExpense={parseExpense} scanReceipt={scanReceipt} />
+              <ChatPanel
+                group={group}
+                me={me}
+                parseExpense={parseExpense}
+                scanReceipt={scanReceipt}
+                onAgentCommand={(text) => {
+                  setAgentText(text);
+                  setAgentOpen(true);
+                }}
+              />
             </div>
             <div className="space-y-5 xl:col-span-7">
               <div className="flex gap-1 rounded-xl border border-gray-800 bg-gray-900/60 p-1" role="tablist">
@@ -342,7 +368,16 @@ export default function App() {
               </div>
               {tab === "overview" ? (
                 <>
-                  <BalancesPanel balances={balances} me={me} onSettle={settle} onNudge={setNudgeDebt} />
+                  <BalancesPanel
+                    balances={balances}
+                    me={me}
+                    onSettle={settle}
+                    onNudge={setNudgeDebt}
+                    onAgent={() => {
+                      setAgentText("");
+                      setAgentOpen(true);
+                    }}
+                  />
                   <Ledger groupId={group.id} expenses={expenses} settlements={settlements} onDelete={deleteExpense} />
                 </>
               ) : (
@@ -364,6 +399,26 @@ export default function App() {
           toast(`${name} joined ${group.name}`, "success");
         }}
       />
+      <AgentModal
+        open={agentOpen}
+        onClose={() => setAgentOpen(false)}
+        group={group}
+        me={me}
+        initialText={agentText}
+        run={agentRun && agentRun.groupId === group?.id ? agentRun : null}
+        onRun={(run) => {
+          setAgentRun(run);
+          if (group) loadGroupData(group.id);
+        }}
+        onApprove={(p) => {
+          if (p.mode === "demo") setDemoCheckout({ settlement: p.settlement, mode: "demo" });
+          else window.location.assign(p.approval_url); // real PayPal Sandbox approval
+        }}
+        onClearRun={() => {
+          agentRun?.payments.filter((p) => p.status === "pending").forEach((p) => api.cancelSettlement(p.settlement.id).catch(() => {}));
+          setAgentRun(null);
+        }}
+      />
       <NudgeModal debt={nudgeDebt} groupId={group?.id} onClose={() => setNudgeDebt(null)} />
       <DemoCheckoutModal
         checkout={demoCheckout}
@@ -377,6 +432,7 @@ export default function App() {
         }}
         onCancel={() => {
           api.cancelSettlement(demoCheckout.settlement.id).catch(() => {});
+          markAgentPayment(demoCheckout.settlement.id, "cancelled");
           setDemoCheckout(null);
           toast("Checkout cancelled — nothing was charged.", "info");
         }}

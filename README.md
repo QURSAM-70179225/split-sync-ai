@@ -19,7 +19,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React%2019-20232a?logo=react&logoColor=61DAFB)
 ![Tailwind](https://img.shields.io/badge/Tailwind%20v4-0b1120?logo=tailwindcss&logoColor=38BDF8)
-![Tests](https://img.shields.io/badge/tests-39%20passing-22c55e)
+![Tests](https://img.shields.io/badge/tests-51%20passing-22c55e)
 
 **[🌐 Live demo](https://split-sync-ai.onrender.com)** · **[🎬 Video](https://youtu.be/J7Zn1pr2FkE)** · **[⚡ Run in 2 min](#-run-it-locally)** · **[🏗️ How it works](#%EF%B8%8F-how-it-works)** · **[🏆 Judges' guide](#-for-judges)**
 
@@ -47,7 +47,7 @@
 |---|---|
 | 📝 Fill a form for every coffee | 🗣️ *"I paid $60 for dinner with Alex and Sarah"*, or **say it**, or **snap the receipt** |
 | 🕸️ A web of IOUs: up to *N(N−1)/2* payments | ⚡ **Smart settlement**: at most *N−1* payments ("3 instead of 6") |
-| 🙈 "I'll pay you later…" | 💳 **Settle via PayPal** in one tap, plus 🔔 AI-written nudges |
+| 🙈 "I'll pay you later…" | 🤖 **Settle-Up Agent**: *"settle everything for me"* → it plans the payments, you confirm, and it runs them through **PayPal** |
 | 🔄 "Did you add it yet?" | 🔴 **Live sync**: every phone updates instantly |
 
 ---
@@ -72,6 +72,9 @@ A greedy debt-simplification algorithm. Exact to the cent, with balances that al
 
 </td>
 <td width="50%" valign="top">
+
+### 🤖 Settle-Up Agent (agentic commerce)
+Say *"Settle everything for me"*, *"Pay back Sarah"* or *"Remind everyone who owes me"*. The AI works out what you want, the **plan is computed from your ledger** (the AI never invents amounts), and after you **confirm** the agent creates the PayPal orders and walks you through approving each one. It also writes reminders for anyone who owes you. Guardrails: it can only pay **your** debts, never more than you owe, and nothing moves without your OK.
 
 ### 💳 PayPal settle-up
 **Orders v2** create → approve → capture. Idempotent, with overpayment protection, and the related splits are marked paid.
@@ -153,6 +156,7 @@ The app runs on **Groq** (GPT-OSS 120B for text, Qwen 3.8 for receipt images) wh
 | 📷 Receipt → itemized split | Vision model + the `ParsedReceipt` schema | Shares scaled to the printed total (tax and tip) |
 | ✨ Ask your ledger | Grounded Q&A over a compact ledger JSON | Answers only from the data provided |
 | 🔔 Nudges | Tone-controlled generation | Template fallback |
+| 🤖 Settle-Up Agent | Classifies the command (intent + people) as JSON | The plan's amounts come from the ledger; it only pays the user's own debts; nothing runs until the user confirms; the server re-checks every amount |
 
 **Every AI feature has a deterministic fallback.** The app fully demos even without a key, and if the AI errors or times out (25 s hard limit) it switches over automatically, and says so in the chat. See [`ai_parser.py`](backend/ai_parser.py).
 </details>
@@ -163,7 +167,7 @@ The app runs on **Groq** (GPT-OSS 120B for text, Qwen 3.8 for receipt images) wh
 1. Open the [live demo](https://split-sync-ai.onrender.com). The tour starts. Click **Load demo & start**, then press **Esc**.
 2. Type: `Jordan paid $48 for pizza with Alex and Sarah` and watch the parse and split.
 3. Look at the **⚡ Smart settlement** banner.
-4. Switch **Acting as → Alex**, click **Settle via PayPal**, and approve with a sandbox buyer.
+4. Switch **Acting as → Alex**, type **`Settle everything for me`** in the chat, check the agent's plan and click **Confirm & run**, then **Approve in PayPal** with a sandbox buyer.
 5. Open a second tab, add an expense, and watch the 🔴 **LIVE** toast in the first tab.
 6. Go to **📊 Insights**, then ask *"Who paid the most?"*
 </details>
@@ -295,7 +299,7 @@ Click **[Deploy to Render](https://render.com/deploy?repo=https://github.com/QUR
 cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check .
 ```
 
-- ✅ **39 tests**: cent-exact splits, balance invariants (Σ = 0), demo settlement and idempotent capture, insights, copilot, nudges, CSV, receipt validation, Groq and Gemini model rollover, AI fallbacks, key scrubbing
+- ✅ **51 tests**: cent-exact splits, balance invariants (Σ = 0), demo settlement and idempotent capture, insights, copilot, nudges, CSV, receipt validation, Groq and Gemini model rollover, AI fallbacks, key scrubbing
 - ✅ **CI** on every push: lint, test, frontend build
 - ✅ **Safe by design**: secrets stay server-side, uploads are checked for type and size, AI output is validated before it touches money
 
@@ -313,6 +317,8 @@ cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check .
 | `GET` | `/api/groups/{id}/insights` | Analytics |
 | `POST` | `/api/groups/{id}/ask` | AI copilot |
 | `POST` | `/api/groups/{id}/nudge` | AI reminder |
+| `POST` | `/api/groups/{id}/agent/plan` | Settle-Up Agent: command → plan (amounts from the ledger) |
+| `POST` | `/api/groups/{id}/agent/execute` | Run a confirmed plan: PayPal orders + reminders, with guardrails |
 | `GET` | `/api/groups/{id}/events` | Live SSE stream |
 
 Full list with request and response shapes: **[SCHEMA.md §4](SCHEMA.md#4-rest-api)** · Interactive docs at `/docs` when running.
@@ -325,6 +331,7 @@ Full list with request and response shapes: **[SCHEMA.md §4](SCHEMA.md#4-rest-a
 - [x] Conversational, voice and receipt logging with AI (Groq or Gemini)
 - [x] PayPal Orders v2 settlement with live sync
 - [x] Insights, copilot, nudges, guided tour
+- [x] 🤖 Settle-Up Agent: plan → confirm → PayPal orders
 - [ ] Auth and invite links
 - [ ] PayPal webhooks as a capture backup · Payouts to creditors
 - [ ] Multi-currency with live FX · recurring expenses

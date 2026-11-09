@@ -32,6 +32,12 @@ Legend: ✅ done · 🟡 in progress · ⬜ to do · 🔑 needs your keys
 - ✅ Balances with greedy debt simplification
 - ✅ React dashboard: chat, ledger, balances, Settle via PayPal
 
+## v2.2: Settle-Up Agent ✅
+- ✅ `/agent/plan`: AI intent → plan computed from the ledger
+- ✅ `/agent/execute`: PayPal orders + reminders, with guardrails (own debts only, re-checked amounts)
+- ✅ Chat commands ("settle everything…") open the agent; payment queue survives PayPal redirects
+- ✅ Tour step, 12 new tests (51 total), browser-tested end to end in demo mode
+
 ## v2: Hackathon edition ✅
 - ✅ Settlement capture flow + `Settlement` table + idempotent capture
 - ✅ Simulated checkout when PayPal isn't configured (`PAYPAL_MODE=auto|sandbox|demo`)

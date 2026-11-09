@@ -74,6 +74,17 @@ export function buildTourSteps({ showTab }) {
       ),
     },
     {
+      id: "agent",
+      target: "agent",
+      title: "🤖 Settle-Up Agent",
+      body: (
+        <>
+          Tell the agent what you want and it does the work: it plans the payments from your ledger, and after you <b>confirm</b> it creates the PayPal orders and writes reminders.
+        </>
+      ),
+      tryIt: "Settle everything for me",
+    },
+    {
       id: "ledger",
       target: "ledger",
       title: "Activity ledger",

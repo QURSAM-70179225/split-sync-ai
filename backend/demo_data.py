@@ -8,19 +8,19 @@ from sqlalchemy.orm import Session
 from ledger import add_member, split_equal
 from models import Expense, ExpenseSplit, Group
 
-MEMBERS = [("You", None), ("Alex", None), ("Sarah", None), ("Jordan", None)]
+MEMBERS = [("Sam", None), ("Alex", None), ("Sarah", None), ("Jordan", None)]
 
 # (days_ago, hour, payer, amount, description, category, participants or None=all, raw_text)
 EXPENSES = [
-    (4, 10, "You", 412.00, "Villa Deposit", "lodging", None, "I paid $412 for the villa deposit, split between everyone"),
+    (4, 10, "Sam", 412.00, "Villa Deposit", "lodging", None, "I paid $412 for the villa deposit, split between everyone"),
     (4, 15, "Alex", 64.80, "Airport Taxi", "transport", None, "Alex paid $64.80 for the airport taxi for all of us"),
     (3, 20, "Sarah", 138.50, "Seafood Dinner", "food", None, "Sarah covered $138.50 for the seafood dinner, split 4 ways"),
     (3, 23, "Jordan", 42.00, "Beach Bar", "food", ["Jordan", "Alex", "Sarah"], "Jordan paid 42 for drinks with Alex and Sarah"),
-    (2, 9, "You", 96.00, "Surf Lessons", "entertainment", ["You", "Sarah"], "I paid $96 for surf lessons with Sarah"),
+    (2, 9, "Sam", 96.00, "Surf Lessons", "entertainment", ["Sam", "Sarah"], "I paid $96 for surf lessons with Sarah"),
     (2, 13, "Alex", 57.25, "Groceries", "groceries", None, "Alex got groceries for $57.25 for everyone"),
     (1, 11, "Jordan", 180.00, "Scooter Rental", "transport", None, "Jordan paid $180 for scooter rental for the group"),
-    (1, 19, "Sarah", 74.40, "Sunset Cruise", "entertainment", ["Sarah", "Alex", "You"], "Sarah paid 74.40 for the sunset cruise with Alex and me"),
-    (0, 9, "You", 31.60, "Brunch", "food", ["You", "Jordan"], "I paid $31.60 for brunch with Jordan"),
+    (1, 19, "Sarah", 74.40, "Sunset Cruise", "entertainment", ["Sarah", "Alex", "Sam"], "Sarah paid 74.40 for the sunset cruise with Alex and me"),
+    (0, 9, "Sam", 31.60, "Brunch", "food", ["Sam", "Jordan"], "I paid $31.60 for brunch with Jordan"),
 ]
 
 
