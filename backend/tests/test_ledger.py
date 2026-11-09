@@ -99,3 +99,59 @@ def test_other_errors_do_not_switch_model(monkeypatch):
     monkeypatch.setattr(ai_parser, "_client", lambda: Client())
     with pytest.raises(RuntimeError, match="429"):
         ai_parser._generate("hi", "sys")
+
+
+def _fake_ai(monkeypatch, behaviour):
+    import ai_parser
+    from config import get_settings
+
+    monkeypatch.setattr(get_settings(), "gemini_api_key", "AIza-test")
+    monkeypatch.setattr(get_settings(), "ai_offline_mode", False)
+    monkeypatch.setattr(ai_parser, "_schema_mode", None)
+    modes = []
+
+    def fake_generate(contents, system, schema=None, temperature=0.0, schema_mode="pydantic"):
+        modes.append(schema_mode)
+        return behaviour(schema_mode)
+
+    monkeypatch.setattr(ai_parser, "_generate", fake_generate)
+    return ai_parser, modes
+
+
+class _Resp:
+    def __init__(self, text):
+        self.text = text
+        self.parsed = None
+
+
+GOOD = ('{"total_amount": 90, "currency": "USD", "description": "Dinner", "payer_name": "You", '
+        '"split_type": "custom", "participants": ["You", "Alex"], '
+        '"custom_shares": [{"name": "You", "amount": 40}, {"name": "Alex", "amount": 50}], "category": "food"}')
+
+
+def test_structured_output_falls_back_to_json_schema(monkeypatch):
+    def behaviour(mode):
+        if mode == "pydantic":
+            raise RuntimeError("400 INVALID_ARGUMENT response_schema not supported")
+        return _Resp(GOOD)
+
+    ai_parser, modes = _fake_ai(monkeypatch, behaviour)
+    p = ai_parser.parse_expense_prompt("I paid 90 for dinner, Alex owes 50", ["You", "Alex"], "You")
+    assert modes == ["pydantic", "json"] and p.split_type == "custom" and p._source.startswith("gemini")
+    modes.clear()
+    ai_parser.parse_expense_prompt("again", ["You", "Alex"], "You")
+    assert modes == ["json"]  # remembered
+
+
+def test_structured_output_tolerates_fenced_json(monkeypatch):
+    ai_parser, modes = _fake_ai(monkeypatch, lambda mode: _Resp("```json\n" + GOOD + "\n```"))
+    assert ai_parser.parse_expense_prompt("x 90", ["You", "Alex"], "You").total_amount == 90
+
+
+def test_fatal_error_stops_retrying(monkeypatch):
+    def behaviour(mode):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED quota exceeded")
+
+    ai_parser, modes = _fake_ai(monkeypatch, behaviour)
+    p = ai_parser.parse_expense_prompt("I paid $10 for tea with Alex", ["You", "Alex"], "You")
+    assert modes == ["pydantic"] and p._source == "offline" and "RESOURCE_EXHAUSTED" in p._fallback_reason

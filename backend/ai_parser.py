@@ -106,13 +106,20 @@ def _client():
     return genai.Client(api_key=get_settings().gemini_api_key)
 
 
-def _generate(contents, system: str, schema=None, temperature: float = 0.0):
+def _generate(contents, system: str, schema=None, temperature: float = 0.0, schema_mode: str = "pydantic"):
+    """One Gemini call. schema_mode: 'pydantic' (response_schema), 'json' (response_json_schema)
+    or 'prompt' (JSON mime type + schema in the instructions)."""
     from google.genai import types
 
+    if schema is not None and schema_mode == "prompt":
+        system = f"{system}\n\nReturn ONLY a JSON object matching this JSON Schema:\n{json.dumps(schema.model_json_schema())}"
     cfg = types.GenerateContentConfig(system_instruction=system, temperature=temperature)
     if schema is not None:
         cfg.response_mime_type = "application/json"
-        cfg.response_schema = schema
+        if schema_mode == "pydantic":
+            cfg.response_schema = schema
+        elif schema_mode == "json":
+            cfg.response_json_schema = schema.model_json_schema()
     global _working_model
     client = _client()
     candidates = [current_model()] + [m for m in (get_settings().gemini_model, *FALLBACK_MODELS) if m != current_model()]
@@ -135,12 +142,55 @@ def _generate(contents, system: str, schema=None, temperature: float = 0.0):
 
 
 def _structured(response, schema):
-    parsed = response.parsed
+    parsed = getattr(response, "parsed", None)
     if isinstance(parsed, schema):
         return parsed
-    if not response.text:
-        raise ExpenseParseError("Gemini returned an empty response")
-    return schema.model_validate_json(response.text)
+    text = (response.text or "").strip()
+    if not text:
+        raise ValueError("Gemini returned an empty response")
+    if text.startswith("```"):  # tolerate fenced JSON
+        text = text.strip("`").removeprefix("json").strip()
+    return schema.model_validate_json(text)
+
+
+SCHEMA_MODES = ("pydantic", "json", "prompt")
+_schema_mode: str | None = None
+_last_ai_errors: list[str] = []
+
+
+def _is_fatal(exc: Exception) -> bool:
+    """Errors no schema strategy can fix: bad key, permissions, quota, retired model."""
+    code = getattr(exc, "code", None)
+    msg = str(exc)
+    return code in (401, 403, 429) or "RESOURCE_EXHAUSTED" in msg or "API key not valid" in msg or _is_model_missing(exc)
+
+
+def _generate_structured(contents, system: str, schema, temperature: float = 0.0):
+    """Structured output that survives SDK/model differences.
+
+    Tries response_schema (Pydantic), then response_json_schema, then prompt-only JSON, and
+    remembers the first strategy that works. The result is always validated by Pydantic.
+    """
+    global _schema_mode
+    modes = [_schema_mode] if _schema_mode else []
+    modes += [m for m in SCHEMA_MODES if m not in modes]
+    errors: list[str] = []
+    for mode in modes:
+        try:
+            result = _structured(_generate(contents, system, schema, temperature, schema_mode=mode), schema)
+        except Exception as exc:
+            errors.append(f"{mode}: {type(exc).__name__}: {_scrub(str(exc))[:200]}")
+            log.warning("Gemini structured output (%s) failed: %s", mode, errors[-1])
+            if _is_fatal(exc):
+                break
+            continue
+        if mode != _schema_mode:
+            log.info("Gemini structured output strategy: %s", mode)
+            _schema_mode = mode
+        _last_ai_errors.clear()
+        return result
+    _last_ai_errors[:] = errors
+    raise RuntimeError(" | ".join(errors) or "Gemini structured output failed")
 
 
 # ------------------------------------------------------------------ offline helpers
@@ -261,13 +311,12 @@ def parse_expense_prompt(text: str, members: list[str], sender: str | None = Non
     if not get_settings().ai_enabled:
         return _finalize(_offline_parse(text, members, sender))
     try:
-        resp = _generate(
+        parsed = _finalize(_generate_structured(
             text,
             EXPENSE_PROMPT.format(members=", ".join(members) or "(none)", sender=sender,
                                   categories=", ".join(CATEGORIES)),
             ParsedExpense,
-        )
-        parsed = _finalize(_structured(resp, ParsedExpense))
+        ))
         parsed._source = ai_mode()
         return parsed
     except ExpenseParseError:
@@ -289,13 +338,12 @@ def parse_receipt(image: bytes, mime_type: str, members: list[str], sender: str,
     from google.genai import types
 
     try:
-        resp = _generate(
+        parsed = _generate_structured(
             [types.Part.from_bytes(data=image, mime_type=mime_type), "Parse this receipt."],
             RECEIPT_PROMPT.format(members=", ".join(members), sender=sender, note=note.replace('"', "'"),
                                   categories=", ".join(CATEGORIES)),
             ParsedReceipt,
         )
-        parsed = _structured(resp, ParsedReceipt)
     except ExpenseParseError:
         raise
     except Exception as exc:
@@ -372,23 +420,34 @@ def _scrub(msg: str) -> str:
 
 
 def check_ai() -> dict:
-    """Live diagnostic: one tiny Gemini call plus the flash models this key can use. Never returns the key."""
+    """Live diagnostic: a plain call and a structured-output call. Never returns the key."""
+    import itertools
+
     s = get_settings()
-    out: dict = {"mode": ai_mode(), "configured_model": s.gemini_model, "key_set": bool(s.gemini_api_key), "ok": False}
+    out: dict = {"mode": ai_mode(), "configured_model": s.gemini_model, "key_set": bool(s.gemini_api_key)}
     if not s.ai_enabled:
-        out["error"] = "AI disabled (no GEMINI_API_KEY, or AI_OFFLINE_MODE=true)"
+        out.update(ok=False, error="AI disabled (no GEMINI_API_KEY, or AI_OFFLINE_MODE=true)")
         return out
     try:
         resp = _generate("Reply with the single word: pong", "You are a health check.")
-        out["ok"] = bool((resp.text or "").strip())
-        out["reply"] = (resp.text or "").strip()[:20]
-        out["model_in_use"] = current_model()
+        out["plain_call"] = f"ok: {(resp.text or '').strip()[:20]}"
     except Exception as exc:
-        out["error"] = f"{type(exc).__name__}: {_scrub(str(exc))}"
-    out["mode"] = ai_mode()
+        out["plain_call"] = f"{type(exc).__name__}: {_scrub(str(exc))}"
     try:
-        names = [m.name for m in _client().models.list()]
-        out["available_flash_models"] = sorted(n.removeprefix("models/") for n in names if "flash" in n)[:15]
+        p = _generate_structured("I paid $90 for dinner with Alex and Sam; Alex owes 50, I owe 25, Sam owes 15",
+                                 EXPENSE_PROMPT.format(members="You, Alex, Sam", sender="You",
+                                                       categories=", ".join(CATEGORIES)), ParsedExpense)
+        out["structured_call"] = f"ok ({_schema_mode}): {p.split_type} {[(c.name, c.amount) for c in p.custom_shares]}"
     except Exception as exc:
-        out["models_error"] = f"{type(exc).__name__}: {_scrub(str(exc))}"
+        out["structured_call"] = "failed"
+        out["structured_errors"] = list(_last_ai_errors) or [f"{type(exc).__name__}: {_scrub(str(exc))}"]
+    out["model_in_use"] = current_model()
+    out["mode"] = ai_mode()
+    out["ok"] = out["plain_call"].startswith("ok") and out["structured_call"].startswith("ok")
+    if not out["plain_call"].startswith("ok"):
+        try:
+            names = [m.name for m in itertools.islice(_client().models.list(), 200)]
+            out["available_flash_models"] = sorted(n.removeprefix("models/") for n in names if "flash" in n)[:15]
+        except Exception as exc:
+            out["models_error"] = f"{type(exc).__name__}: {_scrub(str(exc))}"
     return out
