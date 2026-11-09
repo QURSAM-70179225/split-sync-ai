@@ -176,3 +176,10 @@ def test_itemized_receipt_shares_are_computed_in_code():
     shares = itemized_shares(items, ["You", "Alex", "Sarah"], 50.0)
     assert shares == {"You": 6.04, "Alex": 24.17, "Sarah": 19.79}
     assert round(sum(shares.values()), 2) == 50.0
+
+
+def test_ai_text_answers_are_plain_text():
+    from ai_parser import _plain
+
+    assert _plain("Alex owes you **$301.55**, the most.") == "Alex owes you $301.55, the most."
+    assert _plain("## Answer\n`$5`") == "Answer\n$5"

@@ -473,13 +473,20 @@ def _offline_answer(question: str, ctx: dict, sender: str) -> str:
             "Try asking: “How much did we spend on food?” or “Who owes me?”")
 
 
+def _plain(text: str) -> str:
+    """Chat UI shows plain text: drop markdown emphasis/heading markers models like to add."""
+    text = re.sub(r"(\*\*|__)(.+?)\1", r"\2", text)
+    text = re.sub(r"(?m)^#{1,6}\s*", "", text)
+    return text.replace("`", "").strip()
+
+
 def answer_question(question: str, ctx: dict, sender: str) -> str:
     if not get_settings().ai_enabled:
         return _offline_answer(question, ctx, sender)
     try:
         answer = _ai_text(question, ASK_PROMPT.format(sender=sender, context=json.dumps(ctx, default=str)),
                           temperature=0.3)
-        return answer or _offline_answer(question, ctx, sender)
+        return _plain(answer) or _offline_answer(question, ctx, sender)
     except Exception as exc:
         log.warning("AI ask failed, using offline answer: %s", _scrub(str(exc)))
         return _offline_answer(question, ctx, sender)
@@ -499,7 +506,7 @@ def write_nudge(debtor: str, creditor: str, amount: str, group: str, tone: str) 
     try:
         msg = _ai_text("Write the message.", NUDGE_PROMPT.format(
             debtor=debtor, creditor=creditor, amount=amount, group=group, tone=tone), temperature=0.8)
-        return msg.strip('"') or fallback
+        return _plain(msg).strip('"') or fallback
     except Exception as exc:
         log.warning("AI nudge failed, using template: %s", _scrub(str(exc)))
         return fallback

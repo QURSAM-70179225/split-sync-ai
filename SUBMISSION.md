@@ -29,7 +29,7 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 
 | Criterion | What to point judges at |
 |---|---|
-| **Technological Implementation** | PayPal OAuth2 + Orders v2 create, approve and capture, with idempotent capture and overpayment guards. LLM output is schema-validated before it touches money. Model auto-discovery, timeouts, 37 tests, CI |
+| **Technological Implementation** | PayPal OAuth2 + Orders v2 create, approve and capture, with idempotent capture and overpayment guards. LLM output is schema-validated before it touches money. Model auto-discovery, timeouts, 38 tests, CI |
 | **Design** | A complete product rather than a proof of concept: guided tour, live sync, insights, mobile layout, honest demo or offline states |
 | **Potential Impact** | A real problem for a real audience (trips, housemates, clubs). The settle-up step is where money actually moves, and PayPal closes that loop |
 | **Innovation / Idea** | Talk or photograph → exact itemized split → fewest payments → PayPal → live on every phone, plus an AI copilot and nudges |
@@ -59,7 +59,7 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 > - **Settle:** each debt has a **Settle via PayPal** button. We create a PayPal order, the debtor approves in PayPal checkout, and we capture it. The ledger marks the splits paid and every member's screen updates in real time over Server-Sent Events.
 > - **Understand:** an AI copilot answers questions about the group's money ("How much did we spend on food?"), an insights dashboard shows where the money went, and AI-written nudges (friendly, funny or formal) chase debts politely.
 >
-> **Built for real use:** 37 automated tests, CI, Docker, one-click Render deploy, a guided onboarding tour, and graceful fallbacks so the app keeps working even if an API is down.
+> **Built for real use:** 38 automated tests, CI, Docker, one-click Render deploy, a guided onboarding tour, and graceful fallbacks so the app keeps working even if an API is down.
 
 ### How PayPal is used
 > PayPal is the settlement layer. When a member clicks **Settle via PayPal**, the backend authenticates with OAuth2 client credentials (token cached) and calls **Orders v2 `POST /v2/checkout/orders`** with `intent: CAPTURE`. It sets an `experience_context` with `return_url` and `cancel_url` that point back to the app, `user_action: PAY_NOW` and `shipping_preference: NO_SHIPPING`. The debtor approves on PayPal's checkout page. On return, the app calls **`POST /v2/checkout/orders/{id}/capture`**. Capture is idempotent (`ORDER_ALREADY_CAPTURED` counts as success) and is only accepted when the order ID matches the settlement and the amount doesn't exceed the outstanding debt. A successful capture marks the debtor's splits as paid and broadcasts a live update to the whole group. Optional `payee.email_address` routing can send each payment straight to the creditor's PayPal account.
