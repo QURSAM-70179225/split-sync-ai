@@ -152,3 +152,11 @@ def test_gemini_overload_rolls_to_next_model(monkeypatch):
     monkeypatch.setattr(ai_parser, "_client", lambda: Client())
     assert ai_parser._generate("hi", "sys") == "ok"
     assert tried == ["gemini-3.8-flash", "gemini-3.5-flash"]
+
+
+def test_qwen_multimodal_counts_as_vision(groq):
+    calls, state = groq
+    state["models"] = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
+    state["reply"] = json.dumps(RECEIPT)
+    r = ai_parser.parse_receipt(b"\x89PNG", "image/png", ["You", "Alex"], "You", "Alex had the burger")
+    assert calls[0]["model"] == "qwen/qwen3.8-27b" and r._source == "groq:qwen/qwen3.8-27b"

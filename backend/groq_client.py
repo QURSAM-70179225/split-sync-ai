@@ -26,7 +26,8 @@ VISION_PREFERENCES = (
     "meta-llama/llama-4-maverick-17b-128e-instruct",
 )
 _NOT_CHAT = ("whisper", "tts", "guard", "playai", "orpheus", "distil", "embed", "compound")
-_VISION_HINTS = ("vision", "llama-4", "scout", "maverick")
+# Qwen 3.5+ models are natively multimodal (text + images).
+_VISION_HINTS = ("vision", "llama-4", "scout", "maverick", "-vl", "qwen3.5", "qwen3.6", "qwen3.7", "qwen3.8", "qwen3.9")
 _MODEL_GONE = ("model_not_found", "model_decommissioned", "model_not_active")
 
 _working: dict[str, str | None] = {"text": None, "vision": None}
