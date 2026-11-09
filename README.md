@@ -18,7 +18,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React%2019-20232a?logo=react&logoColor=61DAFB)
 ![Tailwind](https://img.shields.io/badge/Tailwind%20v4-0b1120?logo=tailwindcss&logoColor=38BDF8)
-![Tests](https://img.shields.io/badge/tests-35%20passing-22c55e)
+![Tests](https://img.shields.io/badge/tests-37%20passing-22c55e)
 
 **[🌐 Live demo](https://split-sync-ai.onrender.com)** · **[🎬 Video](#-try-it-now)** · **[⚡ Run in 2 min](#-run-it-locally)** · **[🏗️ How it works](#%EF%B8%8F-how-it-works)** · **[🏆 Judges' guide](#-for-judges)**
 
@@ -294,7 +294,7 @@ Click **[Deploy to Render](https://render.com/deploy?repo=https://github.com/QUR
 cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check .
 ```
 
-- ✅ **35 tests**: cent-exact splits, balance invariants (Σ = 0), demo settlement and idempotent capture, insights, copilot, nudges, CSV, receipt validation, Groq and Gemini model rollover, AI fallbacks, key scrubbing
+- ✅ **37 tests**: cent-exact splits, balance invariants (Σ = 0), demo settlement and idempotent capture, insights, copilot, nudges, CSV, receipt validation, Groq and Gemini model rollover, AI fallbacks, key scrubbing
 - ✅ **CI** on every push: lint, test, frontend build
 - ✅ **Safe by design**: secrets stay server-side, uploads are checked for type and size, AI output is validated before it touches money
 

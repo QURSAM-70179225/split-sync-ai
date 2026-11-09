@@ -436,6 +436,14 @@ def parse_receipt(image: bytes, mime_type: str, members: list[str], sender: str,
         raise ExpenseParseError(f"Couldn't read that receipt: {exc}") from exc
     if not parsed.participants:
         parsed.participants = list(members)
+    if parsed.items and any(it.assigned_to for it in parsed.items) and sum(it.price for it in parsed.items) > 0:
+        from ledger import itemized_shares
+        from schemas import CustomShare
+
+        shares = itemized_shares(parsed.items, parsed.participants, round(parsed.total_amount, 2))
+        parsed.split_type = "custom"
+        parsed.custom_shares = [CustomShare(name=n, amount=a) for n, a in shares.items()]
+        parsed.participants = list(shares)
     return _finalize(parsed)  # type: ignore[return-value]
 
 

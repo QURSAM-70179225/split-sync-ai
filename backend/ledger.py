@@ -162,3 +162,20 @@ def mark_splits_paid(db: Session, st: Settlement) -> None:
             break
         s.status = "paid"
         remaining -= s.owed_amount
+
+
+def itemized_shares(items: list, participants: list[str], total: float) -> dict[str, float]:
+    """Per-person shares for a receipt, computed in code (never trust LLM arithmetic).
+
+    Each item goes to the people in its `assigned_to` (split equally), or to every participant
+    when unassigned. Tax, tip and any rounding are spread proportionally to each person's
+    subtotal by scaling to the printed total, cent-exact.
+    """
+    names = list(dict.fromkeys([*participants, *(n for it in items for n in it.assigned_to)]))
+    subtotal = {n: 0.0 for n in names}
+    for it in items:
+        people = [n for n in it.assigned_to if n in subtotal] or list(participants) or names
+        for n in people:
+            subtotal[n] += it.price / len(people)
+    names = [n for n in names if subtotal[n] > 0]
+    return dict(zip(names, scale_to_total([subtotal[n] for n in names], total), strict=True))

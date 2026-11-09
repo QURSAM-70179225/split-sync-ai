@@ -164,3 +164,15 @@ def test_overloaded_model_fails_fast(monkeypatch):
     ai_parser, modes = _fake_ai(monkeypatch, behaviour)
     p = ai_parser.parse_expense_prompt("I paid $10 for tea with Alex", ["You", "Alex"], "You")
     assert modes == ["pydantic"] and p._source == "offline"
+
+
+def test_itemized_receipt_shares_are_computed_in_code():
+    from ledger import itemized_shares
+    from schemas import ReceiptItem
+
+    items = [ReceiptItem(name="Burger", price=14.5, assigned_to=["Alex"]),
+             ReceiptItem(name="Salad", price=11.0, assigned_to=["Sarah"]),
+             ReceiptItem(name="Fries", price=6.5), ReceiptItem(name="Lemonade", price=8.0)]
+    shares = itemized_shares(items, ["You", "Alex", "Sarah"], 50.0)
+    assert shares == {"You": 6.04, "Alex": 24.17, "Sarah": 19.79}
+    assert round(sum(shares.values()), 2) == 50.0
