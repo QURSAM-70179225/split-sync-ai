@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 
 Category = Literal[
     "food", "groceries", "transport", "lodging", "entertainment",
@@ -32,6 +32,9 @@ class ParsedExpense(BaseModel):
         description="Only when split_type is 'custom': the explicit amount each participant owes",
     )
     category: Category = Field(default="other", description="Spending category")
+    # Which parser produced this ("gemini:<model>" or "offline"); not part of the AI schema.
+    _source: str = PrivateAttr(default="offline")
+    _fallback_reason: str = PrivateAttr(default="")
 
 
 class ReceiptItem(BaseModel):

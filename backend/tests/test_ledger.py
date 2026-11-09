@@ -24,3 +24,26 @@ def test_placeholder_keys_are_ignored():
                  paypal_client_secret="x")
     assert s.gemini_api_key == "" and not s.ai_enabled
     assert s.effective_paypal_mode == "demo"
+
+
+def test_gemini_client_is_reused():
+    """google-genai >= 3 closes a garbage-collected Client; the client must be cached."""
+    import ai_parser
+
+    assert hasattr(ai_parser._client, "cache_info")
+
+
+def test_fallback_is_reported(monkeypatch):
+    """If Gemini errors, the response must say the offline parser was used (not 'gemini')."""
+    import ai_parser
+    from config import get_settings
+
+    monkeypatch.setattr(get_settings(), "gemini_api_key", "AIza-test")
+    monkeypatch.setattr(get_settings(), "ai_offline_mode", False)
+
+    def boom(*a, **k):
+        raise RuntimeError("Cannot send a request, as the client has been closed.")
+
+    monkeypatch.setattr(ai_parser, "_generate", boom)
+    parsed = ai_parser.parse_expense_prompt("I paid $10 for tea with Alex", ["You", "Alex"], "You")
+    assert parsed._source == "offline" and "client has been closed" in parsed._fallback_reason

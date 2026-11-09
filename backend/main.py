@@ -90,7 +90,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="SplitSync AI",
-    version="2.0.0",
+    version="2.0.1",
     description="Conversational group expenses with Gemini AI and autonomous PayPal settlement.",
     lifespan=lifespan,
 )
@@ -211,11 +211,13 @@ def _save_expense(
 
 
 def _parse_response(db, expense, parsed, new_members, notes) -> ExpenseParseResponse:
+    if parsed._fallback_reason:
+        notes = [*notes, "Gemini was unavailable, so the offline parser handled this one. Check the server logs."]
     return ExpenseParseResponse(
         expense=ExpenseOut.from_model(_load_expense(db, expense.id)),
         parsed=ParsedExpense.model_validate(parsed.model_dump(include=set(ParsedExpense.model_fields))),
         new_members=[UserOut.model_validate(u) for u in new_members],
-        ai_mode=ai_mode(),
+        ai_mode=parsed._source,
         notes=notes,
     )
 

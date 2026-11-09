@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from functools import lru_cache
 
 from config import get_settings
 from schemas import CATEGORIES, ParsedExpense, ParsedReceipt
@@ -80,7 +81,13 @@ Return only the message text."""
 
 
 # ------------------------------------------------------------------ gemini
+@lru_cache(maxsize=1)
 def _client():
+    """One long-lived client per process.
+
+    google-genai >= 3 closes a Client when it is garbage-collected, so a throwaway
+    `genai.Client(...).models.generate_content(...)` fails with "client has been closed".
+    """
     from google import genai
 
     return genai.Client(api_key=get_settings().gemini_api_key)
@@ -93,7 +100,8 @@ def _generate(contents, system: str, schema=None, temperature: float = 0.0):
     if schema is not None:
         cfg.response_mime_type = "application/json"
         cfg.response_schema = schema
-    return _client().models.generate_content(model=get_settings().gemini_model, contents=contents, config=cfg)
+    client = _client()
+    return client.models.generate_content(model=get_settings().gemini_model, contents=contents, config=cfg)
 
 
 def _structured(response, schema):
@@ -229,15 +237,19 @@ def parse_expense_prompt(text: str, members: list[str], sender: str | None = Non
                                   categories=", ".join(CATEGORIES)),
             ParsedExpense,
         )
-        return _finalize(_structured(resp, ParsedExpense))
+        parsed = _finalize(_structured(resp, ParsedExpense))
+        parsed._source = ai_mode()
+        return parsed
     except ExpenseParseError:
         raise
     except Exception as exc:
         log.warning("Gemini parse failed, using offline parser: %s", exc)
         try:
-            return _finalize(_offline_parse(text, members, sender))
+            parsed = _finalize(_offline_parse(text, members, sender))
         except ExpenseParseError:
             raise ExpenseParseError(f"AI parsing failed: {exc}") from exc
+        parsed._fallback_reason = f"{type(exc).__name__}: {str(exc)[:160]}"
+        return parsed
 
 
 def parse_receipt(image: bytes, mime_type: str, members: list[str], sender: str, note: str = "") -> ParsedReceipt:
@@ -261,7 +273,9 @@ def parse_receipt(image: bytes, mime_type: str, members: list[str], sender: str,
         raise ExpenseParseError(f"Couldn't read that receipt: {exc}") from exc
     if not parsed.participants:
         parsed.participants = list(members)
-    return _finalize(parsed)  # type: ignore[return-value]
+    parsed = _finalize(parsed)
+    parsed._source = ai_mode()
+    return parsed  # type: ignore[return-value]
 
 
 def _offline_answer(question: str, ctx: dict, sender: str) -> str:
