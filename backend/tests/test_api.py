@@ -116,3 +116,14 @@ def test_offline_description_after_amount(client, trio):
     assert e["description"] == "Uber" and e["category"] == "transport" and e["payer"]["name"] == "Alex"
     e = say(client, gid, "I paid 40 bucks for pizza with Sarah", ids["You"])["expense"]
     assert e["description"] == "Pizza"
+
+
+def test_ai_health_offline(client):
+    body = client.get("/api/health/ai").json()
+    assert body["ok"] is False and body["mode"] == "offline" and "disabled" in body["error"]
+
+
+def test_key_is_scrubbed():
+    from ai_parser import _scrub
+
+    assert "AIzaSyD" not in _scrub("bad key AIzaSyD-abcdefghijklmnop123 rejected")

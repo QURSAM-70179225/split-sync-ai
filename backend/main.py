@@ -24,6 +24,7 @@ from ai_parser import (
     ExpenseParseError,
     ai_mode,
     answer_question,
+    check_ai,
     parse_expense_prompt,
     parse_receipt,
     write_nudge,
@@ -90,7 +91,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="SplitSync AI",
-    version="2.0.1",
+    version="2.0.2",
     description="Conversational group expenses with Gemini AI and autonomous PayPal settlement.",
     lifespan=lifespan,
 )
@@ -233,6 +234,12 @@ def health():
         "paypal_mode": settings.effective_paypal_mode,
         "paypal_env": "sandbox" if "sandbox" in settings.paypal_base_url else "live",
     }
+
+
+@app.get("/api/health/ai")
+async def health_ai():
+    """Live Gemini check: makes one tiny request and lists usable flash models. Never exposes the key."""
+    return await asyncio.to_thread(check_ai)
 
 
 @app.post("/api/demo/seed", response_model=GroupOut, status_code=201)

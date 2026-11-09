@@ -243,12 +243,12 @@ def parse_expense_prompt(text: str, members: list[str], sender: str | None = Non
     except ExpenseParseError:
         raise
     except Exception as exc:
-        log.warning("Gemini parse failed, using offline parser: %s", exc)
+        log.warning("Gemini parse failed, using offline parser: %s", _scrub(str(exc)))
         try:
             parsed = _finalize(_offline_parse(text, members, sender))
         except ExpenseParseError:
             raise ExpenseParseError(f"AI parsing failed: {exc}") from exc
-        parsed._fallback_reason = f"{type(exc).__name__}: {str(exc)[:160]}"
+        parsed._fallback_reason = f"{type(exc).__name__}: {_scrub(str(exc))[:160]}"
         return parsed
 
 
@@ -334,3 +334,29 @@ def write_nudge(debtor: str, creditor: str, amount: str, group: str, tone: str) 
     except Exception as exc:
         log.warning("Gemini nudge failed, using template: %s", exc)
         return fallback
+
+
+def _scrub(msg: str) -> str:
+    """Remove anything that looks like an API key from an error message."""
+    return re.sub(r"AIza[0-9A-Za-z_-]{10,}", "AIza…", msg)[:300]
+
+
+def check_ai() -> dict:
+    """Live diagnostic: one tiny Gemini call plus the flash models this key can use. Never returns the key."""
+    s = get_settings()
+    out: dict = {"mode": ai_mode(), "model": s.gemini_model, "key_set": bool(s.gemini_api_key), "ok": False}
+    if not s.ai_enabled:
+        out["error"] = "AI disabled (no GEMINI_API_KEY, or AI_OFFLINE_MODE=true)"
+        return out
+    try:
+        resp = _generate("Reply with the single word: pong", "You are a health check.")
+        out["ok"] = bool((resp.text or "").strip())
+        out["reply"] = (resp.text or "").strip()[:20]
+    except Exception as exc:
+        out["error"] = f"{type(exc).__name__}: {_scrub(str(exc))}"
+    try:
+        names = [m.name for m in _client().models.list()]
+        out["available_flash_models"] = sorted(n.removeprefix("models/") for n in names if "flash" in n)[:15]
+    except Exception as exc:
+        out["models_error"] = f"{type(exc).__name__}: {_scrub(str(exc))}"
+    return out
