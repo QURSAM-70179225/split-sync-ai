@@ -6,6 +6,8 @@
 
 **Split group expenses by just talking. Google Gemini does the math, and PayPal settles it in one tap.**
 
+<a href="https://split-sync-ai.onrender.com"><img src="https://img.shields.io/badge/▶%20Live%20demo-split--sync--ai.onrender.com-6366f1?style=for-the-badge" alt="Open the live demo"></a>
+
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/QURSAM-70179225/split-sync-ai)
 
 [![CI](https://github.com/QURSAM-70179225/split-sync-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/QURSAM-70179225/split-sync-ai/actions/workflows/ci.yml)
@@ -17,7 +19,7 @@
 ![Tailwind](https://img.shields.io/badge/Tailwind%20v4-0b1120?logo=tailwindcss&logoColor=38BDF8)
 ![Tests](https://img.shields.io/badge/tests-16%20passing-22c55e)
 
-**[🌐 Live demo](#-try-it-now)** · **[🎬 Video](#-try-it-now)** · **[⚡ Run in 2 min](#-run-it-locally)** · **[🏗️ How it works](#%EF%B8%8F-how-it-works)** · **[🏆 Judges' guide](#-for-judges)**
+**[🌐 Live demo](https://split-sync-ai.onrender.com)** · **[🎬 Video](#-try-it-now)** · **[⚡ Run in 2 min](#-run-it-locally)** · **[🏗️ How it works](#%EF%B8%8F-how-it-works)** · **[🏆 Judges' guide](#-for-judges)**
 
 <img src="docs/screenshots/dashboard.png" alt="SplitSync AI dashboard: conversational expense chat, balances with smart settlement, and Settle via PayPal buttons" width="100%">
 
@@ -29,7 +31,7 @@
 
 | | |
 |---|---|
-| 🌐 **Live demo** | **https://split-sync-ai.onrender.com/** 
+| 🌐 **Live demo** | **[split-sync-ai.onrender.com](https://split-sync-ai.onrender.com)** |
 | 🎬 **Demo video** | **`https://youtu.be/<id>`** ← *replace after uploading* |
 | 🧭 **First visit?** | A guided tour starts automatically. Click **Load demo & start** |
 
@@ -154,7 +156,7 @@ sequenceDiagram
 <details>
 <summary><b>⏱️ 60-second judging path</b></summary>
 
-1. Open the live demo. The tour starts. Click **Load demo & start**, then press **Esc**.
+1. Open the [live demo](https://split-sync-ai.onrender.com). The tour starts. Click **Load demo & start**, then press **Esc**.
 2. Type: `Jordan paid $48 for pizza with Alex and Sarah` and watch the parse and split.
 3. Look at the **⚡ Smart settlement** banner.
 4. Switch **Acting as → Alex**, click **Settle via PayPal**, and approve with a sandbox buyer.

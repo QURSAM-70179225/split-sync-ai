@@ -3,8 +3,8 @@
 Legend: ✅ done · 🟡 in progress · ⬜ to do · 🔑 needs your keys
 
 ## 🚀 Submission (see SUBMISSION.md)
-- [ ] Create the public GitHub repo and push
-- [ ] Click **Deploy to Render** in the README, add keys, and copy the URL into the README and the form
+- [x] Create the public GitHub repo and push
+- [x] Deploy to Render: https://split-sync-ai.onrender.com
 - [ ] Record a video under 3 minutes (shot list in SUBMISSION.md) and upload it as **Public** on YouTube
 - [ ] Tick sponsor tools: **PayPal**, **Google Gemini**
 - [ ] Invite teammates and confirm they accepted
@@ -64,7 +64,7 @@ Legend: ✅ done · 🟡 in progress · ⬜ to do · 🔑 needs your keys
 - ⬜ `setup.bat` / `start.bat` on a real Windows machine (written for PowerShell 5.1, not executed yet)
 - ✅ Root `Dockerfile` built and run locally (healthy, serves the SPA + API, seeds the demo)
 - ⬜ `docker compose up` (two-container variant, not built yet)
-- ⬜ A real Render deploy (blueprint written; needs the public repo)
+- ✅ Deployed to Render: https://split-sync-ai.onrender.com
 
 ## v3: Roadmap ⬜
 - ⬜ Auth + invite links (magic link). Replace "Acting as" with the real identity

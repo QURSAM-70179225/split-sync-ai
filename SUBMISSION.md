@@ -7,8 +7,8 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 | # | Requirement | Status | Where |
 |---|---|---|---|
 | 1 | Project **meaningfully uses PayPal** (sandbox OK) **and AI** | ✅ | PayPal Orders v2 create, approve, capture for every settle-up. Gemini for text, receipt-vision, copilot and nudges. See [How PayPal is used](#how-paypal-is-used) and [How AI is used](#how-ai-is-used) |
-| 2 | **Judges can run it**: hosted URL or run instructions | ✅ / 🔲 | Run instructions: [README → Run it](README.md#-run-it-locally). Hosted: deploy with the Render button in [DEPLOY.md](DEPLOY.md), then paste the URL below |
-| 3 | **Public repo** with README and an **open-source license** | ✅ / 🔲 | [README.md](README.md) · [LICENSE](LICENSE) (MIT). Make sure the repo is **Public** |
+| 2 | **Judges can run it**: hosted URL or run instructions | ✅ | Run instructions: [README → Run it](README.md#-run-it-locally). Hosted: deploy with the Render button in [DEPLOY.md](DEPLOY.md), then paste the URL below |
+| 3 | **Public repo** with README and an **open-source license** | ✅ | [README.md](README.md) · [LICENSE](LICENSE) (MIT). Make sure the repo is **Public** |
 | 4 | **Public YouTube video under 3 minutes** | 🔲 *you* | Use the [video shot list](#-video-shot-list-under-3-min) below. Set visibility to **Public** |
 | 5 | **Sponsor tools selected** on the form | 🔲 *you* | Select **PayPal** and **Google Gemini** (plus any other sponsors you used) |
 | 6 | **Teammates invited and accepted** | 🔲 *you* | Invite them on the hackathon platform and make sure each one **accepts** before the deadline |
@@ -65,7 +65,7 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 
 **Links**
 > - Repo: https://github.com/QURSAM-70179225/split-sync-ai
-> - Live demo: `https://<your-app>.onrender.com` *(after deploying)*
+> - Live demo: https://split-sync-ai.onrender.com
 > - Video: `https://youtu.be/<id>` *(after uploading)*
 
 **Challenges we ran into**
