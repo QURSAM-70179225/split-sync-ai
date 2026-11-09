@@ -173,7 +173,8 @@ def _is_fatal(exc: Exception) -> bool:
     """Errors no schema strategy can fix: bad key, permissions, quota, retired model."""
     code = getattr(exc, "code", None)
     msg = str(exc)
-    return (code in (401, 403, 429) or "RESOURCE_EXHAUSTED" in msg or "API key not valid" in msg
+    return (code in (401, 403, 429, 500, 502, 503, 504) or "RESOURCE_EXHAUSTED" in msg or "API key not valid" in msg
+            or "UNAVAILABLE" in msg or "DEADLINE_EXCEEDED" in msg
             or "timed out" in msg.lower() or "Timeout" in type(exc).__name__ or _is_model_missing(exc))
 
 

@@ -155,3 +155,12 @@ def test_fatal_error_stops_retrying(monkeypatch):
     ai_parser, modes = _fake_ai(monkeypatch, behaviour)
     p = ai_parser.parse_expense_prompt("I paid $10 for tea with Alex", ["You", "Alex"], "You")
     assert modes == ["pydantic"] and p._source == "offline" and "RESOURCE_EXHAUSTED" in p._fallback_reason
+
+
+def test_overloaded_model_fails_fast(monkeypatch):
+    def behaviour(mode):
+        raise RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand.")
+
+    ai_parser, modes = _fake_ai(monkeypatch, behaviour)
+    p = ai_parser.parse_expense_prompt("I paid $10 for tea with Alex", ["You", "Alex"], "You")
+    assert modes == ["pydantic"] and p._source == "offline"
