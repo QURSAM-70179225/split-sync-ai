@@ -80,7 +80,7 @@ Open http://localhost:8080. nginx serves the frontend and proxies `/api`, with S
 | Variable | Default | Notes |
 |---|---|---|
 | `GEMINI_API_KEY` | *(empty)* | Empty means the offline parser. Receipt scanning needs a key |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Any Gemini model that supports structured output |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | Any Gemini model that supports structured output |
 | `AI_OFFLINE_MODE` | `false` | Forces offline mode even when a key is set |
 | `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` | *(empty)* | Sandbox app credentials |
 | `PAYPAL_MODE` | `auto` | `auto` = sandbox when keys exist, otherwise demo. `sandbox` or `demo` force a mode |

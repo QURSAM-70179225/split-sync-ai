@@ -13,7 +13,7 @@
 [![CI](https://github.com/QURSAM-70179225/split-sync-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/QURSAM-70179225/split-sync-ai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg)](LICENSE)
 ![PayPal](https://img.shields.io/badge/PayPal-Orders%20v2%20Sandbox-003087?logo=paypal&logoColor=white)
-![Gemini](https://img.shields.io/badge/Google%20Gemini-2.5%20Flash-8E75B2?logo=googlegemini&logoColor=white)
+![Gemini](https://img.shields.io/badge/Google%20Gemini-3.8%20Flash-8E75B2?logo=googlegemini&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React%2019-20232a?logo=react&logoColor=61DAFB)
 ![Tailwind](https://img.shields.io/badge/Tailwind%20v4-0b1120?logo=tailwindcss&logoColor=38BDF8)

@@ -50,7 +50,7 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 > PayPal is the settlement layer. When a member clicks **Settle via PayPal**, the backend authenticates with OAuth2 client credentials (token cached) and calls **Orders v2 `POST /v2/checkout/orders`** with `intent: CAPTURE`. It sets an `experience_context` with `return_url` and `cancel_url` that point back to the app, `user_action: PAY_NOW` and `shipping_preference: NO_SHIPPING`. The debtor approves on PayPal's checkout page. On return, the app calls **`POST /v2/checkout/orders/{id}/capture`**. Capture is idempotent (`ORDER_ALREADY_CAPTURED` counts as success) and is only accepted when the order ID matches the settlement and the amount doesn't exceed the outstanding debt. A successful capture marks the debtor's splits as paid and broadcasts a live update to the whole group. Optional `payee.email_address` routing can send each payment straight to the creditor's PayPal account.
 
 ### How AI is used
-> Google Gemini (`gemini-2.5-flash` via the `google-genai` SDK) powers four features:
+> Google Gemini (`gemini-3.8-flash` via the `google-genai` SDK) powers four features:
 > 1. **Conversational parsing.** Free text goes through `response_schema=ParsedExpense` (Pydantic) to strict JSON: payer, total, currency, participants, equal or custom shares, category. Pronouns resolve to the sender, and nicknames map to member names.
 > 2. **Receipt vision.** A photo plus an optional note goes through `ParsedReceipt`: merchant, line items, per-item assignees, tax and tip, and per-person shares.
 > 3. **Ledger copilot.** Natural-language questions are answered from a compact JSON snapshot of the ledger.

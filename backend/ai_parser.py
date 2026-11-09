@@ -25,9 +25,22 @@ class ExpenseParseError(ValueError):
     """Raised when text/image can't be turned into a valid expense (maps to HTTP 422)."""
 
 
+# Tried in order after GEMINI_MODEL when Google reports a model as retired / not found.
+FALLBACK_MODELS = ("gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-flash-latest")
+_working_model: str | None = None
+
+
+def current_model() -> str:
+    return _working_model or get_settings().gemini_model
+
+
 def ai_mode() -> str:
-    s = get_settings()
-    return f"gemini:{s.gemini_model}" if s.ai_enabled else "offline"
+    return f"gemini:{current_model()}" if get_settings().ai_enabled else "offline"
+
+
+def _is_model_missing(exc: Exception) -> bool:
+    msg = str(exc)
+    return getattr(exc, "code", None) == 404 or "NOT_FOUND" in msg or "no longer available" in msg
 
 
 # ------------------------------------------------------------------ prompts
@@ -100,8 +113,25 @@ def _generate(contents, system: str, schema=None, temperature: float = 0.0):
     if schema is not None:
         cfg.response_mime_type = "application/json"
         cfg.response_schema = schema
+    global _working_model
     client = _client()
-    return client.models.generate_content(model=get_settings().gemini_model, contents=contents, config=cfg)
+    candidates = [current_model()] + [m for m in (get_settings().gemini_model, *FALLBACK_MODELS) if m != current_model()]
+    last_exc: Exception | None = None
+    for model in dict.fromkeys(candidates):
+        try:
+            resp = client.models.generate_content(model=model, contents=contents, config=cfg)
+        except Exception as exc:
+            if _is_model_missing(exc):
+                log.warning("Gemini model %s unavailable, trying the next one", model)
+                last_exc = exc
+                continue
+            raise
+        if model != _working_model:
+            if model != get_settings().gemini_model:
+                log.warning("Using Gemini model %s (GEMINI_MODEL=%s is unavailable)", model, get_settings().gemini_model)
+            _working_model = model
+        return resp
+    raise last_exc or RuntimeError("No Gemini model available")
 
 
 def _structured(response, schema):
@@ -344,7 +374,7 @@ def _scrub(msg: str) -> str:
 def check_ai() -> dict:
     """Live diagnostic: one tiny Gemini call plus the flash models this key can use. Never returns the key."""
     s = get_settings()
-    out: dict = {"mode": ai_mode(), "model": s.gemini_model, "key_set": bool(s.gemini_api_key), "ok": False}
+    out: dict = {"mode": ai_mode(), "configured_model": s.gemini_model, "key_set": bool(s.gemini_api_key), "ok": False}
     if not s.ai_enabled:
         out["error"] = "AI disabled (no GEMINI_API_KEY, or AI_OFFLINE_MODE=true)"
         return out
@@ -352,8 +382,10 @@ def check_ai() -> dict:
         resp = _generate("Reply with the single word: pong", "You are a health check.")
         out["ok"] = bool((resp.text or "").strip())
         out["reply"] = (resp.text or "").strip()[:20]
+        out["model_in_use"] = current_model()
     except Exception as exc:
         out["error"] = f"{type(exc).__name__}: {_scrub(str(exc))}"
+    out["mode"] = ai_mode()
     try:
         names = [m.name for m in _client().models.list()]
         out["available_flash_models"] = sorted(n.removeprefix("models/") for n in names if "flash" in n)[:15]

@@ -18,7 +18,7 @@ services:
       - key: PAYPAL_MODE
         value: auto
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.8-flash
       - key: SEED_DEMO_ON_START
         value: "true"
       # Free instances have an ephemeral disk; the demo group re-seeds on each restart.

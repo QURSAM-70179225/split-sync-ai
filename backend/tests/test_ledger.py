@@ -47,3 +47,55 @@ def test_fallback_is_reported(monkeypatch):
     monkeypatch.setattr(ai_parser, "_generate", boom)
     parsed = ai_parser.parse_expense_prompt("I paid $10 for tea with Alex", ["You", "Alex"], "You")
     assert parsed._source == "offline" and "client has been closed" in parsed._fallback_reason
+
+
+def test_retired_model_falls_back(monkeypatch):
+    """Google retires model names; a 404 must roll over to the next model and remember it."""
+    import ai_parser
+    from config import get_settings
+
+    monkeypatch.setattr(get_settings(), "gemini_api_key", "AIza-test")
+    monkeypatch.setattr(get_settings(), "ai_offline_mode", False)
+    monkeypatch.setattr(get_settings(), "gemini_model", "gemini-2.5-flash")
+    monkeypatch.setattr(ai_parser, "_working_model", None)
+    calls = []
+
+    class Models:
+        def generate_content(self, model, contents, config):
+            calls.append(model)
+            if model == "gemini-2.5-flash":
+                raise RuntimeError("404 NOT_FOUND. This model is no longer available to new users.")
+            return "ok"
+
+    class Client:
+        models = Models()
+
+    monkeypatch.setattr(ai_parser, "_client", lambda: Client())
+    assert ai_parser._generate("hi", "sys") == "ok"
+    assert calls == ["gemini-2.5-flash", "gemini-3.8-flash"]
+    assert ai_parser.ai_mode() == "gemini:gemini-3.8-flash"
+    calls.clear()
+    ai_parser._generate("hi again", "sys")
+    assert calls == ["gemini-3.8-flash"]  # remembered, no retry
+
+
+def test_other_errors_do_not_switch_model(monkeypatch):
+    import pytest
+
+    import ai_parser
+    from config import get_settings
+
+    monkeypatch.setattr(get_settings(), "gemini_api_key", "AIza-test")
+    monkeypatch.setattr(get_settings(), "ai_offline_mode", False)
+    monkeypatch.setattr(ai_parser, "_working_model", None)
+
+    class Models:
+        def generate_content(self, model, contents, config):
+            raise RuntimeError("429 RESOURCE_EXHAUSTED quota")
+
+    class Client:
+        models = Models()
+
+    monkeypatch.setattr(ai_parser, "_client", lambda: Client())
+    with pytest.raises(RuntimeError, match="429"):
+        ai_parser._generate("hi", "sys")
