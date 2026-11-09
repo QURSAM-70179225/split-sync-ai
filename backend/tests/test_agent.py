@@ -89,3 +89,9 @@ def test_execute_refuses_nudging_for_someone_else(client, owing):
     r = client.post(f"/api/groups/{gid}/agent/execute", json={"sender_id": ids["You"], "actions": [
         {"kind": "nudge", "from_user_id": ids["You"], "to_user_id": ids["Sarah"], "amount": 15, "currency": "USD"}]})
     assert r.status_code == 403
+
+
+def test_plan_names_the_person_you_dont_owe(client, owing):
+    gid, ids = owing
+    p = plan(client, gid, ids["Alex"], "Pay back Sarah")
+    assert p["actions"] == [] and "You don't owe Sarah anything" in p["summary"]

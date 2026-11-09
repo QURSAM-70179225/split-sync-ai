@@ -98,7 +98,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="SplitSync AI",
-    version="2.2.0",
+    version="2.2.1",
     description="Conversational group expenses with Gemini AI and autonomous PayPal settlement.",
     lifespan=lifespan,
 )

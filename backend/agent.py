@@ -101,6 +101,11 @@ def build_plan(db, group: Group, me: User, intent: AgentIntent, mode: str) -> Ag
     if intent.intent == "unknown":
         summary = ("I can settle your debts with PayPal or remind people who owe you. "
                    "Try “Settle everything for me”, “Pay back Sarah” or “Remind everyone who owes me”.")
+    elif not actions and intent.intent == "pay_specific" and intent.people:
+        names = " or ".join(p.strip().title() for p in intent.people)
+        others = sorted({d.to_user.name for d in debts if d.from_user.id == me.id})
+        summary = f"You don't owe {names} anything right now." + (
+            f" You do owe {', '.join(others)}. Say “settle everything” to pay that." if others else " 🎉")
     elif not actions:
         summary = ("You're all square. There's nothing for me to pay or collect. 🎉"
                    if intent.intent == "settle_all" else
