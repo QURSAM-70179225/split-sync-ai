@@ -42,6 +42,7 @@ export default function App() {
   const [tourOpen, setTourOpen] = useState(false);
   const handledReturn = useRef(false);
   const lastLocalAction = useRef(0);
+  const pendingLocal = useRef(0); // requests from this tab still in flight
 
   const toast = useCallback((message, type = "info") => {
     const id = Math.random().toString(36).slice(2);
@@ -99,16 +100,27 @@ export default function App() {
     }
     if (evt.type === "member.added") loadGroups();
     loadGroupData(activeId);
-    const fromElsewhere = Date.now() - lastLocalAction.current > 2500;
+    // Our own actions also come back over SSE: only toast changes made on another device.
+    const fromElsewhere = pendingLocal.current === 0 && Date.now() - lastLocalAction.current > 2500;
     if (fromElsewhere && LIVE_EVENT_TEXT[evt.type]) toast(`🔴 Live: ${LIVE_EVENT_TEXT[evt.type](evt)}`, "info");
   });
   const touch = () => (lastLocalAction.current = Date.now());
+  /** Run a request that changes the group, marking it as ours so its live event isn't toasted. */
+  const local = async (fn) => {
+    pendingLocal.current += 1;
+    touch();
+    try {
+      return await fn();
+    } finally {
+      pendingLocal.current -= 1;
+      touch();
+    }
+  };
 
   // ---------- PayPal return handling (?paypal=success&settlement_id=..&token=ORDER_ID)
   const capture = useCallback(
     async (sid, orderId) => {
-      touch();
-      const st = await api.captureSettlement(sid, orderId);
+      const st = await local(() => api.captureSettlement(sid, orderId));
       toast(`Payment of ${money(st.amount, st.currency)} from ${st.from_user.name} to ${st.to_user.name} completed! 🎉`, "success");
       setActiveId(st.group_id);
       await loadGroupData(st.group_id);
@@ -163,20 +175,17 @@ export default function App() {
   }
 
   async function parseExpense(text, source) {
-    touch();
-    return afterExpense(await api.parseExpense(group.id, text, me?.id, source));
+    return afterExpense(await local(() => api.parseExpense(group.id, text, me?.id, source)));
   }
 
   async function scanReceipt(file, note) {
-    touch();
-    return afterExpense(await api.scanReceipt(group.id, file, note, me?.id));
+    return afterExpense(await local(() => api.scanReceipt(group.id, file, note, me?.id)));
   }
 
   async function deleteExpense(id) {
     if (!window.confirm("Delete this expense?")) return;
     try {
-      touch();
-      await api.deleteExpense(id);
+      await local(() => api.deleteExpense(id));
       await loadGroupData(group.id);
     } catch (e) {
       toast(e.message, "error");
@@ -349,8 +358,7 @@ export default function App() {
         open={showAddMember}
         onClose={() => setShowAddMember(false)}
         onAdd={async (name, email) => {
-          touch();
-          await api.addMember(group.id, name, email);
+          await local(() => api.addMember(group.id, name, email));
           await loadGroups();
           await loadGroupData(group.id);
           toast(`${name} joined ${group.name}`, "success");
