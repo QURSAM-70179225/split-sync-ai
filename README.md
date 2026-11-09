@@ -7,7 +7,7 @@
 **Split group expenses by just talking. AI does the math, and PayPal settles it in one tap.**
 
 <a href="https://split-sync-ai.onrender.com"><img src="https://img.shields.io/badge/▶%20Live%20demo-split--sync--ai.onrender.com-6366f1?style=for-the-badge" alt="Open the live demo"></a>
-<a href="https://youtu.be/J7Zn1pr2FkE"><img src="https://img.shields.io/badge/▶%20Demo%20video-YouTube-ff0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the demo video"></a>
+<a href="https://youtu.be/R-i8pGHFC8g"><img src="https://img.shields.io/badge/▶%20Demo%20video-YouTube-ff0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the demo video"></a>
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/QURSAM-70179225/split-sync-ai)
 
@@ -21,7 +21,7 @@
 ![Tailwind](https://img.shields.io/badge/Tailwind%20v4-0b1120?logo=tailwindcss&logoColor=38BDF8)
 ![Tests](https://img.shields.io/badge/tests-52%20passing-22c55e)
 
-**[🌐 Live demo](https://split-sync-ai.onrender.com)** · **[🎬 Video](https://youtu.be/J7Zn1pr2FkE)** · **[⚡ Run in 2 min](#-run-it-locally)** · **[🏗️ How it works](#%EF%B8%8F-how-it-works)** · **[🏆 Judges' guide](#-for-judges)**
+**[🌐 Live demo](https://split-sync-ai.onrender.com)** · **[🎬 Video](https://youtu.be/R-i8pGHFC8g)** · **[⚡ Run in 2 min](#-run-it-locally)** · **[🏗️ How it works](#%EF%B8%8F-how-it-works)** · **[🏆 Judges' guide](#-for-judges)**
 
 <img src="docs/screenshots/dashboard.png" alt="SplitSync AI dashboard: conversational expense chat, balances with smart settlement, and Settle via PayPal buttons" width="100%">
 
@@ -34,7 +34,7 @@
 | | |
 |---|---|
 | 🌐 **Live demo** | **[split-sync-ai.onrender.com](https://split-sync-ai.onrender.com)** |
-| 🎬 **Demo video** | **[Watch on YouTube (2:22)](https://youtu.be/J7Zn1pr2FkE)** |
+| 🎬 **Demo video** | **[Watch on YouTube (2:31)](https://youtu.be/R-i8pGHFC8g)** |
 | 🧭 **First visit?** | A guided tour starts automatically. Click **Load demo & start** |
 
 > 💡 The hosted demo may take ~50 s to wake up on first load (free tier).

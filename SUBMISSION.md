@@ -85,7 +85,7 @@ Everything you need for the submission form, in one place. Copy, paste, done.
 **Links**
 > - Repo: https://github.com/QURSAM-70179225/split-sync-ai
 > - Live demo: https://split-sync-ai.onrender.com
-> - Video: https://youtu.be/J7Zn1pr2FkE
+> - Video: https://youtu.be/R-i8pGHFC8g
 
 **Challenges we ran into**
 > Making LLM output safe enough to move money: strict schemas plus server-side validation and cent-exact math. Live sync from synchronous request handlers, done with a thread-safe broker into an async SSE stream. Keeping the demo bulletproof, with offline fallbacks for every AI feature and a clearly labelled simulated checkout when sandbox keys are missing.
