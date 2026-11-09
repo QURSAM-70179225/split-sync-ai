@@ -96,11 +96,13 @@ Category breakdown, paid vs. fair share, daily spend. Onboarding tour. One-click
 <summary><b>📸 More screenshots (click to expand)</b></summary>
 <br>
 
-| Insights & AI copilot | Guided tour |
+| 🤖 Settle-Up Agent | Insights & AI copilot |
 |---|---|
-| <img src="docs/screenshots/insights.png" alt="Insights tab with KPIs, highlights and the Ask-your-ledger copilot"> | <img src="docs/screenshots/tour.png" alt="Guided tour spotlighting the Settle via PayPal button"> |
-| **AI nudge (funny tone)** | **Checkout (demo mode, no keys)** |
-| <img src="docs/screenshots/nudge.png" alt="AI nudge modal with tone picker"> | <img src="docs/screenshots/checkout.png" alt="Simulated checkout shown when PayPal keys are not configured"> |
+| <img src="docs/screenshots/agent.png" alt="Settle-Up Agent planning a PayPal payment from a chat command"> | <img src="docs/screenshots/insights.png" alt="Insights tab with KPIs, highlights and the Ask-your-ledger copilot"> |
+| **Guided tour** | **AI nudge (funny tone)** |
+| <img src="docs/screenshots/tour.png" alt="Guided tour spotlighting the Settle via PayPal button"> | <img src="docs/screenshots/nudge.png" alt="AI nudge modal with tone picker"> |
+| **Checkout (demo mode, no keys)** | |
+| <img src="docs/screenshots/checkout.png" alt="Simulated checkout shown when PayPal keys are not configured"> | |
 
 <p align="center"><img src="docs/screenshots/mobile.png" alt="Mobile layout" width="300"></p>
 
